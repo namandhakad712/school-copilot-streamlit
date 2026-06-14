@@ -6,139 +6,315 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from lib.client import get_client, transcribe, generate_response, synthesize_speech
+from lib.visuals import render_interactive_visual
 
 load_dotenv()
 
 st.set_page_config(page_title="Classroom Co-Pilot AI", page_icon="🎓", layout="wide", initial_sidebar_state="expanded")
 
-# ═══════════════════════════════════════════════════════════════
-# CUSTOM CSS — Dark glass-morphism for smart board
-# ═══════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
-.stApp {
-    background: linear-gradient(135deg, #0a0a1a 0%, #0d1117 40%, #0a0a1a 100%);
-    font-family: 'Inter', sans-serif;
+:root {
+    --primary: #00d4aa;
+    --primary-dim: rgba(0,212,170,0.12);
+    --purple: #7c3aed;
+    --purple-dim: rgba(124,58,237,0.12);
+    --blue: #3b82f6;
+    --blue-dim: rgba(59,130,246,0.12);
+    --amber: #f59e0b;
+    --amber-dim: rgba(245,158,11,0.12);
+    --red: #ef4444;
+    --glass: rgba(255,255,255,0.03);
+    --glass-border: rgba(255,255,255,0.06);
+    --glass-hover: rgba(255,255,255,0.1);
+    --text: rgba(255,255,255,0.92);
+    --text2: rgba(255,255,255,0.55);
+    --text3: rgba(255,255,255,0.3);
 }
 
-/* Header */
-.main-header {
-    background: linear-gradient(135deg, rgba(0,212,170,0.12), rgba(124,58,237,0.12));
-    border: 1px solid rgba(0,212,170,0.15);
-    border-radius: 16px;
-    padding: 20px 28px;
-    margin-bottom: 20px;
-    backdrop-filter: blur(20px);
+.stApp { background: #050510; font-family: 'Inter', sans-serif; }
+
+/* ─── Hero ─── */
+.hero {
+    position: relative;
+    background: linear-gradient(135deg, rgba(0,212,170,0.06) 0%, rgba(124,58,237,0.06) 100%);
+    border: 1px solid rgba(0,212,170,0.1);
+    border-radius: 20px;
+    padding: 36px 44px;
+    margin-bottom: 28px;
+    overflow: hidden;
 }
-.main-header h1 {
-    color: white !important;
-    font-size: 28px;
-    font-weight: 800;
-    margin: 0;
-    background: linear-gradient(135deg, #00d4aa, #7c3aed);
+.hero::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    right: -15%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(0,212,170,0.05) 0%, transparent 70%);
+    animation: glow 8s ease-in-out infinite alternate;
+}
+@keyframes glow {
+    0% { transform: translate(0,0) scale(1); opacity: 0.5; }
+    100% { transform: translate(30px,-20px) scale(1.15); opacity: 1; }
+}
+.hero h1 {
+    font-size: 32px !important;
+    font-weight: 900 !important;
+    margin: 0 0 6px !important;
+    background: linear-gradient(135deg, #00d4aa 0%, #7c3aed 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    position: relative;
+    z-index: 1;
 }
-.main-header p { color: rgba(255,255,255,0.5); margin: 4px 0 0; font-size: 14px; }
-
-/* Glass card */
-.glass-card {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 14px;
-    padding: 20px;
-    backdrop-filter: blur(12px);
-    margin-bottom: 16px;
+.hero-sub {
+    color: var(--text2);
+    font-size: 14px;
+    margin: 0;
+    position: relative;
+    z-index: 1;
 }
 
-/* Point cards */
-.point-card {
-    background: rgba(255,255,255,0.03);
-    border-left: 3px solid #00d4aa;
-    border-radius: 0 8px 8px 0;
-    padding: 12px 16px;
-    margin: 8px 0;
-    color: rgba(255,255,255,0.7);
-    font-size: 15px;
-    line-height: 1.5;
+/* ─── Section Headers ─── */
+.section-label {
+    color: var(--text3);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 700;
+    margin-bottom: 10px;
 }
-.point-card strong { color: #00d4aa; }
 
-/* Quiz */
-.quiz-option {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 10px;
-    padding: 12px 16px;
-    margin: 6px 0;
-    color: rgba(255,255,255,0.7);
-    font-size: 15px;
+/* ─── Example Chips ─── */
+.example-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--glass-border);
+    background: var(--glass);
+    color: var(--text2);
+    cursor: pointer;
     transition: all 0.2s;
 }
-.quiz-option.correct { border-color: #34d399; background: rgba(52,211,153,0.1); color: #34d399; }
-.quiz-option.incorrect { border-color: #ef4444; background: rgba(239,68,68,0.1); color: #ef4444; }
-
-/* Translation */
-.trans-card {
-    background: rgba(124,58,237,0.06);
-    border: 1px solid rgba(124,58,237,0.2);
-    border-radius: 12px;
-    padding: 20px;
-    margin: 12px 0;
+.chip:hover {
+    border-color: var(--glass-hover);
+    color: var(--text);
+    transform: translateY(-1px);
 }
-.trans-original { color: rgba(255,255,255,0.5); font-size: 13px; margin-bottom: 8px; }
-.trans-translated { color: white; font-size: 18px; font-weight: 600; }
 
-/* Activity Timer */
-.timer-box {
-    background: rgba(251,191,36,0.08);
-    border: 1px solid rgba(251,191,36,0.2);
-    border-radius: 14px;
+/* ─── Glass Panel ─── */
+.glass {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
     padding: 24px;
+    margin-bottom: 20px;
+}
+
+/* ─── Point Cards ─── */
+.point-card {
+    background: var(--glass);
+    border-left: 3px solid var(--primary);
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px;
+    margin: 8px 0;
+    color: var(--text2);
+    font-size: 14px;
+    line-height: 1.6;
+}
+.point-card strong { color: var(--primary); }
+
+/* ─── Quiz ─── */
+.quiz-badge {
+    display: inline-block;
+    background: var(--purple-dim);
+    color: #a78bfa;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 6px;
+    margin-right: 8px;
+}
+.quiz-q {
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 600;
+    margin: 20px 0 10px;
+}
+
+/* ─── Translation ─── */
+.trans-card {
+    background: linear-gradient(135deg, rgba(124,58,237,0.05), rgba(59,130,246,0.05));
+    border: 1px solid rgba(124,58,237,0.12);
+    border-radius: 16px;
+    padding: 32px;
     text-align: center;
 }
-.timer-time { font-size: 48px; font-weight: 800; color: #fbbf24; font-variant-numeric: tabular-nums; }
-.timer-step { color: rgba(255,255,255,0.7); font-size: 15px; margin: 8px 0; }
-.timer-step.active { color: #fbbf24; font-weight: 600; }
 
-/* Timing badges */
-.timing-badge {
-    display: inline-block;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 20px;
-    padding: 4px 12px;
-    font-size: 11px;
-    color: rgba(255,255,255,0.4);
-    margin: 2px;
+/* ─── Activity Timer ─── */
+.timer-box {
+    background: linear-gradient(135deg, rgba(245,158,11,0.05), rgba(245,158,11,0.02));
+    border: 1px solid rgba(245,158,11,0.12);
+    border-radius: 16px;
+    padding: 32px;
+    text-align: center;
 }
-
-/* Status pill */
-.status-pill { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-.status-idle { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.4); }
-.status-processing { background: rgba(251,191,36,0.15); color: #fbbf24; }
-.status-speaking { background: rgba(0,212,170,0.15); color: #00d4aa; }
-.status-error { background: rgba(239,68,68,0.15); color: #ef4444; }
-
-/* Sidebar */
-section[data-testid="stSidebar"] { background: rgba(13,17,23,0.95); border-right: 1px solid rgba(255,255,255,0.06); }
-
-/* Feature pills */
-.feature-pill {
-    display: inline-block;
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 12px;
+.timer-num {
+    font-size: 52px;
+    font-weight: 900;
+    color: var(--amber);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 2px;
+    margin: 12px 0;
+}
+.timer-step {
+    color: var(--text2);
+    font-size: 14px;
+    padding: 10px 16px;
+    margin: 6px 0;
+    border-radius: 10px;
+    background: var(--glass);
+    text-align: left;
+}
+.timer-step.active {
+    color: var(--amber);
+    background: var(--amber-dim);
     font-weight: 600;
-    margin: 3px;
-    border: 1px solid;
+    border-left: 3px solid var(--amber);
 }
-.feature-simplify { background: rgba(0,212,170,0.1); border-color: rgba(0,212,170,0.25); color: #00d4aa; }
-.feature-quiz { background: rgba(124,58,237,0.1); border-color: rgba(124,58,237,0.25); color: #a78bfa; }
-.feature-translate { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.25); color: #60a5fa; }
-.feature-activity { background: rgba(251,191,36,0.1); border-color: rgba(251,191,36,0.25); color: #fbbf24; }
+
+/* ─── Visual Cue ─── */
+.visual-cue {
+    background: linear-gradient(135deg, rgba(0,212,170,0.04), transparent);
+    border: 1px solid rgba(0,212,170,0.1);
+    border-radius: 14px;
+    padding: 20px;
+    margin-top: 16px;
+    text-align: center;
+}
+.visual-cue-label {
+    color: var(--primary);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+.visual-cue-text {
+    color: var(--text2);
+    font-size: 13px;
+    font-style: italic;
+    line-height: 1.6;
+}
+
+/* ─── Timing ─── */
+.timing-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+.timing-chip {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 11px;
+    color: var(--text3);
+}
+.timing-chip b { color: var(--text2); }
+
+/* ─── Transcript ─── */
+.transcript-box {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+}
+
+/* ─── Score ─── */
+.score-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-top: 12px;
+}
+.score-ring {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    border: 3px solid var(--glass-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--primary);
+    flex-shrink: 0;
+}
+
+/* ─── Empty State ─── */
+.empty-state {
+    border: 1px dashed var(--glass-border);
+    border-radius: 16px;
+    padding: 80px 32px;
+    text-align: center;
+}
+.empty-icon { font-size: 64px; margin-bottom: 20px; opacity: 0.35; }
+.empty-title { color: var(--text2); font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+.empty-sub { color: var(--text3); font-size: 13px; line-height: 1.7; }
+
+/* ─── Sidebar ─── */
+section[data-testid="stSidebar"] {
+    background: #080818 !important;
+    border-right: 1px solid rgba(255,255,255,0.06) !important;
+}
+section[data-testid="stSidebar"] .stMarkdown p,
+section[data-testid="stSidebar"] .stMarkdown li {
+    color: var(--text2) !important;
+}
+section[data-testid="stSidebar"] hr {
+    border-color: rgba(255,255,255,0.06) !important;
+}
+
+/* Streamlit overrides */
+.stButton > button {
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    transition: all 0.2s !important;
+}
+.stButton > button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0,212,170,0.2);
+}
+.stRadio > div { gap: 6px !important; }
+.stRadio > div > label {
+    background: var(--glass) !important;
+    border: 1px solid var(--glass-border) !important;
+    border-radius: 10px !important;
+    padding: 10px 14px !important;
+    transition: all 0.2s !important;
+}
+.stRadio > div > label:hover {
+    border-color: var(--glass-hover) !important;
+}
+.stRadio > div > label[data-checked="true"] {
+    border-color: var(--primary) !important;
+    background: var(--primary-dim) !important;
+}
 
 #MainMenu, footer, header { visibility: hidden; }
 </style>
@@ -146,307 +322,331 @@ section[data-testid="stSidebar"] { background: rgba(13,17,23,0.95); border-right
 
 
 def init_session():
-    for k, v in {
+    defaults = {
         "history": [], "status": "idle", "last_response": None, "last_audio": None,
         "last_transcript": "", "last_timing": {}, "quiz_score": {"correct": 0, "total": 0},
-    }.items():
+    }
+    for k, v in defaults.items():
         if k not in st.session_state:
             st.session_state[k] = v
 
 
-def render_header():
-    s = st.session_state.status
-    st.markdown(f"""
-    <div class="main-header">
-        <h1>Classroom Co-Pilot AI</h1>
-        <p>Voice-First AI Teaching Assistant for Haryana Government Schools &nbsp;
-            <span class="status-pill status-{s}">{s.upper()}</span>
-        </p>
-        <div style="margin-top:8px">
-            <span class="feature-pill feature-simplify">Live Explanation</span>
-            <span class="feature-pill feature-quiz">Voice Quizzes</span>
-            <span class="feature-pill feature-translate">Translation</span>
-            <span class="feature-pill feature-activity">Activity Guide</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-
+# ═══════════════════════════════════════════════════════════════
+# SIDEBAR — All settings live here, clean and organized
+# ═══════════════════════════════════════════════════════════════
 def render_sidebar():
     with st.sidebar:
-        st.markdown("### Settings")
-        api_key = st.text_input("Mistral API Key", value=os.getenv("MISTRAL_API_KEY", ""), type="password",
-                                help="Get yours at console.mistral.ai")
-        if api_key: os.environ["MISTRAL_API_KEY"] = api_key
+        st.markdown("""
+        <div style="text-align:center;padding:12px 0 20px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:20px;">
+            <div style="font-size:28px;margin-bottom:6px;">🎓</div>
+            <div style="color:rgba(255,255,255,0.9);font-size:14px;font-weight:700;">Co-Pilot Settings</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        class_level = st.selectbox("Class Level", ["", "6", "7", "8", "9", "10"],
-                                   format_func=lambda x: f"Class {x}" if x else "Auto-detect")
-        subject = st.selectbox("Subject Focus", ["auto", "Science", "Mathematics"])
+        # API Key
+        api_key = st.text_input(
+            "API Key",
+            value=os.getenv("MISTRAL_API_KEY", ""),
+            type="password",
+            placeholder="sk-...",
+        )
+        if api_key:
+            os.environ["MISTRAL_API_KEY"] = api_key
+
+        st.markdown('<div style="height:4px"></div>', unsafe_allow_html=True)
+
+        # Class & Subject
+        col1, col2 = st.columns(2)
+        with col1:
+            class_level = st.selectbox("Class", ["", "6", "7", "8", "9", "10"],
+                                       format_func=lambda x: f"Class {x}" if x else "Auto")
+        with col2:
+            subject = st.selectbox("Subject", ["auto", "Science", "Math"],
+                                   format_func=lambda x: "All" if x == "auto" else x)
+
+        # Voice
         voice_id = st.selectbox("Voice", [
             "en_paul_neutral", "en_oliver_confident", "en_jane_neutral",
             "en_marie_confident", "gb_jane_confident", "gb_geoffrey_confident",
-        ], help="Mistral preset voice for TTS")
+        ])
 
-        st.divider()
-        st.markdown("### History")
-        if st.session_state.history:
-            for entry in reversed(st.session_state.history[-8:]):
-                icon = "🎙" if entry["role"] == "user" else "🤖"
-                text = entry["content"][:80] + ("..." if len(entry["content"]) > 80 else "")
-                st.markdown(f"{icon} {text}")
-            if st.button("Clear History"): st.session_state.history = []; st.rerun()
-        else:
-            st.caption("No conversations yet.")
+        st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
 
-        # Score display
+        # Quick examples
+        st.markdown('<div class="section-label">Quick Examples</div>', unsafe_allow_html=True)
+        examples = [
+            ("Photosynthesis samjhao", "🔬 Concept"),
+            ("Newton laws ka quiz banao", "🧩 Quiz"),
+            ("Mitochondria translate karo", "🌐 Translate"),
+            ("Science experiment batao", "🧪 Activity"),
+        ]
+        for query, label in examples:
+            if st.button(label, key=f"ex_{query}", use_container_width=True):
+                st.session_state["example_query"] = query
+                st.rerun()
+
+        st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
+
+        # Score
         if st.session_state.quiz_score["total"] > 0:
             sc = st.session_state.quiz_score
-            st.divider()
-            st.markdown(f"### Quiz Score: {sc['correct']}/{sc['total']}")
+            pct = int(sc["correct"] / sc["total"] * 100)
+            st.markdown(f"""
+            <div class="score-bar">
+                <div class="score-ring">{pct}%</div>
+                <div>
+                    <div style="color:rgba(255,255,255,0.8);font-weight:600;font-size:13px;">Quiz Score</div>
+                    <div style="color:rgba(255,255,255,0.4);font-size:12px;">{sc['correct']}/{sc['total']} correct</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # History
+        if st.session_state.history:
+            st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
+            st.markdown('<div class="section-label">Recent</div>', unsafe_allow_html=True)
+            for entry in reversed(st.session_state.history[-5:]):
+                icon = "🎙" if entry["role"] == "user" else "🤖"
+                text = entry["content"][:50] + ("..." if len(entry["content"]) > 50 else "")
+                st.markdown(f'<div style="color:rgba(255,255,255,0.4);font-size:11px;padding:3px 0;">{icon} {text}</div>', unsafe_allow_html=True)
+            if st.button("Clear", use_container_width=True):
+                st.session_state.history = []
+                st.session_state.quiz_score = {"correct": 0, "total": 0}
+                st.rerun()
 
     return api_key, class_level, subject, voice_id
 
 
+# ═══════════════════════════════════════════════════════════════
+# RENDER FUNCTIONS
+# ═══════════════════════════════════════════════════════════════
 def render_simplify(response):
-    if not response.screen_data: return
+    if not response.screen_data:
+        return
     sd = response.screen_data
-    st.markdown(f"### {sd.title}")
+    st.markdown(f'<div style="color:var(--primary);font-size:10px;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:6px;">Concept</div>', unsafe_allow_html=True)
+    st.markdown(f'<h3 style="color:var(--text);font-size:20px;font-weight:700;margin:0 0 16px;">{sd.title}</h3>', unsafe_allow_html=True)
     for i, p in enumerate(sd.points):
         st.markdown(f'<div class="point-card"><strong>{i+1}.</strong> {p}</div>', unsafe_allow_html=True)
     if sd.visual_cue:
-        st.markdown(f"""<div style="margin-top:12px;padding:12px;background:rgba(0,212,170,0.05);
-            border:1px solid rgba(0,212,170,0.15);border-radius:10px;
-            color:rgba(255,255,255,0.5);font-size:13px;font-style:italic;">
-            Visual: {sd.visual_cue}</div>""", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="visual-cue">
+            <div class="visual-cue-label">Smart Board</div>
+            <div class="visual-cue-text">{sd.visual_cue}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
 
 def render_quiz(response):
-    if not response.quiz_data: return
+    if not response.quiz_data:
+        return
     qd = response.quiz_data
-    st.markdown(f"### Quiz: {qd.topic}")
-
+    st.markdown(f'<div style="color:#a78bfa;font-size:10px;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:6px;">Quiz</div>', unsafe_allow_html=True)
+    st.markdown(f'<h3 style="color:var(--text);font-size:20px;font-weight:700;margin:0 0 20px;">{qd.topic}</h3>', unsafe_allow_html=True)
     for qi, q in enumerate(qd.questions):
-        st.markdown(f'<div style="margin:16px 0 8px;color:rgba(255,255,255,0.85);font-size:16px;font-weight:600;">Q{qi+1}. {q.question}</div>', unsafe_allow_html=True)
-        selected = st.radio("Answer", q.options, key=f"quiz_{qi}", label_visibility="collapsed")
-        idx = q.options.index(selected) if selected in q.options else -1
+        st.markdown(f'<div class="quiz-q"><span class="quiz-badge">Q{qi+1}</span>{q.question}</div>', unsafe_allow_html=True)
+        sel = st.radio("Answer", q.options, key=f"quiz_{qi}", label_visibility="collapsed")
+        idx = q.options.index(sel) if sel in q.options else -1
         if idx == q.correct_index:
-            st.markdown('<div class="quiz-option correct">Correct!</div>', unsafe_allow_html=True)
-            if not st.session_state.get(f"quiz_counted_{qi}"):
+            st.markdown('<div style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);border-radius:10px;padding:10px 14px;color:#34d399;font-weight:600;font-size:13px;">Correct!</div>', unsafe_allow_html=True)
+            if not st.session_state.get(f"qc_{qi}"):
                 st.session_state.quiz_score["correct"] += 1
                 st.session_state.quiz_score["total"] += 1
-                st.session_state[f"quiz_counted_{qi}"] = True
+                st.session_state[f"qc_{qi}"] = True
         elif idx != -1:
-            st.markdown(f'<div class="quiz-option incorrect">Incorrect. Correct answer: {q.options[q.correct_index]}</div>', unsafe_allow_html=True)
-            if not st.session_state.get(f"quiz_counted_{qi}"):
+            st.markdown(f'<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:10px 14px;color:#ef4444;font-size:13px;">Wrong — Answer: <b>{q.options[q.correct_index]}</b></div>', unsafe_allow_html=True)
+            if not st.session_state.get(f"qc_{qi}"):
                 st.session_state.quiz_score["total"] += 1
-                st.session_state[f"quiz_counted_{qi}"] = True
+                st.session_state[f"qc_{qi}"] = True
 
 
 def render_translation(response):
-    if not response.translation: return
+    if not response.translation:
+        return
     t = response.translation
     st.markdown(f"""
     <div class="trans-card">
-        <div class="trans-original">{t.get('original', '')}</div>
-        <div class="trans-translated">{t.get('translated', '')}</div>
-        <div style="color:rgba(255,255,255,0.3);font-size:12px;margin-top:8px;">{t.get('language', '')}</div>
+        <div style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">Original</div>
+        <div style="color:rgba(255,255,255,0.5);font-size:16px;margin-bottom:24px;">{t.get('original','')}</div>
+        <div style="color:var(--text3);font-size:28px;margin-bottom:24px;">↓</div>
+        <div style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">Translated</div>
+        <div style="color:var(--text);font-size:24px;font-weight:700;">{t.get('translated','')}</div>
+        <div style="color:var(--text3);font-size:11px;margin-top:14px;text-transform:uppercase;letter-spacing:1px;">{t.get('language','')}</div>
     </div>
     """, unsafe_allow_html=True)
 
 
 def render_activity(response):
-    if not response.activity: return
+    if not response.activity:
+        return
     a = response.activity
-    duration = a.get("duration_seconds", 300)
+    dur = a.get("duration_seconds", 300)
     steps = a.get("steps", [])
-
-    st.markdown(f"### Activity: {a.get('instruction', '')}")
-
-    # Timer
-    timer_placeholder = st.empty()
-    if st.button("Start Timer", type="primary"):
-        for remaining in range(duration, 0, -1):
-            mins, secs = divmod(remaining, 60)
-            active_step = len(steps) - 1 if steps else 0
-            for si, s in enumerate(steps):
-                step_duration = duration / len(steps)
-                if remaining > duration - step_duration * (si + 1):
-                    active_step = si
-                    break
-
-            steps_html = "".join(
-                f'<div class="timer-step {"active" if i == active_step else ""}">{i+1}. {s}</div>'
-                for i, s in enumerate(steps)
-            )
-            timer_placeholder.markdown(f"""
-            <div class="timer-box">
-                <div class="timer-time">{mins:02d}:{secs:02d}</div>
-                {steps_html}
-            </div>
-            """, unsafe_allow_html=True)
+    st.markdown(f'<div style="color:var(--amber);font-size:10px;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:6px;">Activity</div>', unsafe_allow_html=True)
+    st.markdown(f'<h3 style="color:var(--text);font-size:18px;font-weight:700;margin:0 0 6px;">{a.get("instruction","")}</h3>', unsafe_allow_html=True)
+    st.markdown(f'<div style="color:var(--text3);font-size:12px;margin-bottom:20px;">{dur//60} min {dur%60} sec</div>', unsafe_allow_html=True)
+    ph = st.empty()
+    if st.button("Start Timer", type="primary", use_container_width=True):
+        for rem in range(dur, 0, -1):
+            m, s = divmod(rem, 60)
+            act = len(steps) - 1 if steps else 0
+            for si in range(len(steps)):
+                if rem > dur - (dur / len(steps)) * (si + 1):
+                    act = si; break
+            sh = "".join(f'<div class="timer-step {"active" if i==act else ""}">{i+1}. {st2}</div>' for i, st2 in enumerate(steps))
+            ph.markdown(f'<div class="timer-box"><div style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;">Remaining</div><div class="timer-num">{m:02d}:{s:02d}</div>{sh}</div>', unsafe_allow_html=True)
             time.sleep(1)
-        timer_placeholder.markdown("""<div class="timer-box">
-            <div class="timer-time" style="color:#34d399;">DONE!</div>
-            <div class="timer-step" style="color:#34d399;">Activity completed!</div>
-        </div>""", unsafe_allow_html=True)
+        ph.markdown('<div class="timer-box"><div class="timer-num" style="color:#34d399;">DONE!</div><div style="color:#34d399;font-weight:600;">Complete</div></div>', unsafe_allow_html=True)
     else:
-        mins, secs = divmod(duration, 60)
-        steps_html = "".join(f'<div class="timer-step">{i+1}. {s}</div>' for i, s in enumerate(steps))
-        timer_placeholder.markdown(f"""<div class="timer-box">
-            <div class="timer-time">{mins:02d}:{secs:02d}</div>
-            {steps_html}
-        </div>""", unsafe_allow_html=True)
+        m, s = divmod(dur, 60)
+        sh = "".join(f'<div class="timer-step">{i+1}. {st2}</div>' for i, st2 in enumerate(steps))
+        ph.markdown(f'<div class="timer-box"><div style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;">Duration</div><div class="timer-num">{m:02d}:{s:02d}</div>{sh}</div>', unsafe_allow_html=True)
 
 
-def render_timing(timing: dict):
-    badges = []
-    for key, label in [("stt_ms","STT"),("llm_ms","LLM"),("tts_ms","TTS"),("total_ms","Total")]:
-        if key in timing and timing[key]: badges.append(f"{label}: {timing[key]}ms")
-    if badges:
-        html = " ".join(f'<span class="timing-badge">{b}</span>' for b in badges)
-        st.markdown(f'<div style="margin-top:12px">{html}</div>', unsafe_allow_html=True)
+def render_timing(timing):
+    chips = []
+    for k, l in [("stt_ms","STT"),("llm_ms","LLM"),("tts_ms","TTS"),("total_ms","Total")]:
+        if k in timing and timing[k]:
+            chips.append(f'<span class="timing-chip">{l}: <b>{timing[k]}ms</b></span>')
+    if chips:
+        st.markdown(f'<div class="timing-bar">{"".join(chips)}</div>', unsafe_allow_html=True)
 
 
+def render_smart_board(response):
+    if response.mode == "SIMPLIFY":
+        vis = getattr(response, "visualization", None)
+        sd = response.screen_data
+        title = sd.title if sd else ""
+        points = sd.points if sd else []
+        cue = sd.visual_cue if sd else ""
+        render_interactive_visual(vis, title=title, points=points, visual_cue=cue)
+
+    elif response.mode == "QUIZ" and response.quiz_data:
+        qd = response.quiz_data
+        qs = ""
+        for qi, q in enumerate(qd.questions):
+            opts = "".join(f'<div style="padding:6px 12px;margin:3px 0;border-radius:8px;background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.5);font-size:13px;">{chr(65+j)}. {o}</div>' for j, o in enumerate(q.options))
+            qs += f'<div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:16px;margin:10px 0;"><div style="color:rgba(255,255,255,0.85);font-weight:600;margin-bottom:8px;">Q{qi+1}. {q.question}</div>{opts}</div>'
+        st.markdown(f'<div style="background:linear-gradient(135deg,rgba(124,58,237,0.05),rgba(124,58,237,0.01));border:1px solid rgba(124,58,237,0.1);border-radius:16px;padding:28px;min-height:300px;"><div style="text-align:center;margin-bottom:16px;"><div style="color:#a78bfa;font-size:10px;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:8px;">Quiz Board</div><h2 style="color:white;margin:0;font-size:20px;font-weight:700;">{qd.topic}</h2></div>{qs}</div>', unsafe_allow_html=True)
+
+    elif response.mode == "TRANSLATE" and response.translation:
+        t = response.translation
+        st.markdown(f'<div style="background:linear-gradient(135deg,rgba(124,58,237,0.05),rgba(59,130,246,0.05));border:1px solid rgba(124,58,237,0.1);border-radius:16px;padding:32px;min-height:300px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;"><div style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;">Original</div><div style="color:rgba(255,255,255,0.5);font-size:16px;margin-bottom:20px;max-width:80%;">{t.get("original","")}</div><div style="color:var(--text3);font-size:28px;margin-bottom:20px;">↕</div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;">Translated</div><div style="color:white;font-size:22px;font-weight:700;max-width:80%;">{t.get("translated","")}</div><div style="color:var(--text3);font-size:11px;margin-top:14px;">{t.get("language","")}</div></div>', unsafe_allow_html=True)
+
+    elif response.mode == "ACTIVITY" and response.activity:
+        a = response.activity
+        dur = a.get("duration_seconds", 0)
+        ss = "".join(f'<div style="padding:10px 16px;margin:5px 0;background:rgba(255,255,255,0.04);border-radius:10px;color:rgba(255,255,255,0.6);font-size:14px;border-left:3px solid var(--amber);"><b style="color:var(--amber);">{i+1}.</b> {s}</div>' for i, s in enumerate(a.get("steps", [])))
+        st.markdown(f'<div style="background:linear-gradient(135deg,rgba(245,158,11,0.05),rgba(245,158,11,0.01));border:1px solid rgba(245,158,11,0.1);border-radius:16px;padding:28px;min-height:300px;"><div style="text-align:center;margin-bottom:16px;"><div style="color:var(--amber);font-size:10px;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:8px;">Activity Board</div><h2 style="color:white;margin:0;font-size:18px;font-weight:700;">{a.get("instruction","")}</h2><div style="color:var(--text3);font-size:12px;margin-top:6px;">{dur//60} min {dur%60} sec</div></div>{ss}</div>', unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════════
+# MAIN
+# ═══════════════════════════════════════════════════════════════
 def main():
     init_session()
-    render_header()
     api_key, class_level, subject, voice_id = render_sidebar()
 
+    # Hero
+    st.markdown("""
+    <div class="hero">
+        <h1>Classroom Co-Pilot AI</h1>
+        <p class="hero-sub">Voice-first AI assistant for Haryana government school teachers</p>
+    </div>
+    """, unsafe_allow_html=True)
+
     if not api_key:
-        st.warning("Enter your Mistral API key in the sidebar to start.")
+        st.markdown("""
+        <div class="glass" style="text-align:center;padding:48px 32px;">
+            <div style="font-size:48px;margin-bottom:16px;">🔑</div>
+            <div style="color:var(--text);font-size:16px;font-weight:600;margin-bottom:6px;">API Key Required</div>
+            <div style="color:var(--text3);font-size:13px;">Enter your Mistral API key in the sidebar to begin.<br>Get one free at <a href="https://console.mistral.ai" target="_blank" style="color:var(--primary);">console.mistral.ai</a></div>
+        </div>
+        """, unsafe_allow_html=True)
         st.stop()
 
     client = get_client(api_key)
 
-    col_main, col_right = st.columns([3, 2])
+    # Input
+    audio_value = st.audio_input("Record your question")
 
-    with col_main:
-        st.markdown("### Ask a Question")
+    example_q = st.session_state.pop("example_query", "")
+    text_value = st.text_input("question", value=example_q, placeholder="Type or speak in Hinglish...", label_visibility="collapsed")
 
-        audio_value = st.audio_input("Record your question", key="audio")
-        text_value = st.text_input("Or type your question", placeholder="e.g. Photosynthesis samjhao / Translate this / Newton's laws quiz lagao...", key="text")
+    c1, c2 = st.columns([1, 4])
+    with c1:
+        ask = st.button("Ask", type="primary", use_container_width=True)
 
-        if st.button("Ask", type="primary", use_container_width=True):
-            transcript = ""
-            if audio_value is not None:
-                audio_bytes = audio_value.getvalue()
-                if audio_bytes:
-                    with st.spinner("Transcribing..."):
-                        t0 = time.time()
-                        transcript = transcribe(client, audio_bytes)
-                        stt_ms = int((time.time() - t0) * 1000)
-                    if not transcript:
-                        st.error("No speech detected."); st.stop()
-            elif text_value.strip():
-                transcript = text_value.strip()
+    if ask:
+        transcript = ""
+        stt_ms = 0
+        if audio_value:
+            ab = audio_value.getvalue()
+            if ab:
+                with st.spinner("Transcribing..."):
+                    t0 = time.time()
+                    transcript = transcribe(client, ab)
+                    stt_ms = int((time.time() - t0) * 1000)
+                if not transcript:
+                    st.error("No speech detected."); st.stop()
+        elif text_value.strip():
+            transcript = text_value.strip()
+        if not transcript:
+            st.info("Speak or type a question."); st.stop()
 
-            if not transcript:
-                st.info("Ask a question by voice or text."); st.stop()
+        st.session_state.last_transcript = transcript
+        st.session_state.history.append({"role": "user", "content": transcript})
 
-            st.session_state.last_transcript = transcript
-            st.session_state.history.append({"role": "user", "content": transcript})
+        with st.spinner("Thinking..."):
+            resp, timing = generate_response(client, transcript, class_level, subject)
+        if not resp:
+            st.error("Failed."); st.stop()
+        timing["stt_ms"] = stt_ms
 
-            with st.spinner("Thinking..."):
-                response, timing = generate_response(client, transcript, class_level, subject)
-            if not response:
-                st.error("Failed to generate response."); st.stop()
-            timing["stt_ms"] = stt_ms if audio_value else 0
+        audio_b64 = None
+        if voice_id:
+            with st.spinner("Generating speech..."):
+                audio_b64, tts_ms = synthesize_speech(client, resp.audio_speech, voice_id)
+                timing["tts_ms"] = tts_ms
+        timing["total_ms"] = sum(v for v in timing.values() if isinstance(v, int))
 
-            audio_b64 = None
-            if voice_id:
-                with st.spinner("Generating speech..."):
-                    audio_b64, tts_ms = synthesize_speech(client, response.audio_speech, voice_id)
-                    timing["tts_ms"] = tts_ms
-            timing["total_ms"] = sum(v for v in timing.values() if isinstance(v, int))
+        st.session_state.last_response = resp
+        st.session_state.last_audio = audio_b64
+        st.session_state.last_timing = timing
+        st.session_state.status = "speaking"
+        st.session_state.history.append({"role": "assistant", "content": resp.audio_speech[:200]})
+        st.rerun()
 
-            st.session_state.last_response = response
-            st.session_state.last_audio = audio_b64
-            st.session_state.last_timing = timing
-            st.session_state.status = "speaking"
-            st.session_state.history.append({"role": "assistant", "content": response.audio_speech[:200]})
-            st.rerun()
+    # Response
+    if st.session_state.last_response:
+        resp = st.session_state.last_response
 
-        # ─── Display response ───
-        if st.session_state.last_response:
-            response = st.session_state.last_response
-            st.divider()
+        if st.session_state.last_transcript:
+            st.markdown(f'<div class="transcript-box"><div style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:4px;">Transcript</div><div style="color:var(--text);font-size:15px;">{st.session_state.last_transcript}</div></div>', unsafe_allow_html=True)
 
-            if st.session_state.last_transcript:
-                st.markdown(f"""<div class="glass-card">
-                    <div style="color:rgba(255,255,255,0.4);font-size:11px;margin-bottom:4px;">TRANSCRIPT</div>
-                    <div style="color:rgba(255,255,255,0.8);font-size:15px;">{st.session_state.last_transcript}</div>
-                </div>""", unsafe_allow_html=True)
+        if st.session_state.last_audio:
+            st.audio(base64.b64decode(st.session_state.last_audio), format="audio/mp3", autoplay=True)
 
-            if st.session_state.last_audio:
-                st.audio(base64.b64decode(st.session_state.last_audio), format="audio/mp3", autoplay=True)
-
-            if response.mode == "SIMPLIFY": render_simplify(response)
-            elif response.mode == "QUIZ": render_quiz(response)
-            elif response.mode == "TRANSLATE": render_translation(response)
-            elif response.mode == "ACTIVITY": render_activity(response)
-
+        c_resp, c_board = st.columns([3, 2])
+        with c_resp:
+            if resp.mode == "SIMPLIFY": render_simplify(resp)
+            elif resp.mode == "QUIZ": render_quiz(resp)
+            elif resp.mode == "TRANSLATE": render_translation(resp)
+            elif resp.mode == "ACTIVITY": render_activity(resp)
             render_timing(st.session_state.last_timing)
 
-    # ─── Smart Board Right Panel ───
-    with col_right:
-        st.markdown("### Smart Board Display")
+        with c_board:
+            st.markdown('<div class="section-label">Smart Board</div>', unsafe_allow_html=True)
+            render_smart_board(resp)
 
-        if st.session_state.last_response:
-            response = st.session_state.last_response
-            if response.mode == "SIMPLIFY" and response.screen_data:
-                sd = response.screen_data
-                st.markdown(f"""<div style="background:rgba(0,212,170,0.06);border:1px solid rgba(0,212,170,0.15);
-                    border-radius:14px;padding:24px;text-align:center;min-height:300px;
-                    display:flex;flex-direction:column;justify-content:center;align-items:center;">
-                    <h2 style="color:white;margin:0 0 16px;font-size:22px;">{sd.title}</h2>
-                    {''.join(f'<div style="text-align:left;width:100%;padding:8px 16px;margin:4px 0;background:rgba(255,255,255,0.04);border-radius:8px;color:rgba(255,255,255,0.6);font-size:14px;"><strong style="color:#00d4aa">{i+1}.</strong> {p}</div>' for i, p in enumerate(sd.points))}
-                    <div style="margin-top:16px;color:rgba(255,255,255,0.3);font-size:12px;font-style:italic;">{sd.visual_cue}</div>
-                </div>""", unsafe_allow_html=True)
-
-            elif response.mode == "QUIZ" and response.quiz_data:
-                qd = response.quiz_data
-                st.markdown(f"### Quiz: {qd.topic}")
-                for qi, q in enumerate(qd.questions):
-                    st.markdown(f"""<div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:16px;margin:10px 0;">
-                        <div style="color:rgba(255,255,255,0.85);font-weight:600;margin-bottom:8px;">Q{qi+1}. {q.question}</div>
-                        {''.join(f'<div style="padding:6px 12px;margin:3px 0;border-radius:6px;background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.5);font-size:13px;">{chr(65+j)}. {opt}</div>' for j, opt in enumerate(q.options))}
-                    </div>""", unsafe_allow_html=True)
-
-            elif response.mode == "TRANSLATE" and response.translation:
-                t = response.translation
-                st.markdown(f"""<div style="background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.2);
-                    border-radius:14px;padding:24px;text-align:center;min-height:300px;
-                    display:flex;flex-direction:column;justify-content:center;align-items:center;">
-                    <div style="color:rgba(255,255,255,0.4);font-size:12px;margin-bottom:8px;">ORIGINAL</div>
-                    <div style="color:rgba(255,255,255,0.6);font-size:16px;margin-bottom:24px;">{t.get('original','')}</div>
-                    <div style="color:rgba(255,255,255,0.2);font-size:24px;margin-bottom:24px;">↕</div>
-                    <div style="color:rgba(255,255,255,0.4);font-size:12px;margin-bottom:8px;">TRANSLATED</div>
-                    <div style="color:white;font-size:22px;font-weight:700;">{t.get('translated','')}</div>
-                    <div style="color:rgba(255,255,255,0.3);font-size:12px;margin-top:16px;">{t.get('language','')}</div>
-                </div>""", unsafe_allow_html=True)
-
-            elif response.mode == "ACTIVITY" and response.activity:
-                a = response.activity
-                steps_html = "".join(f'<div style="padding:8px 12px;margin:4px 0;background:rgba(255,255,255,0.04);border-radius:8px;color:rgba(255,255,255,0.6);font-size:14px;"><strong style="color:#fbbf24">{i+1}.</strong> {s}</div>' for i, s in enumerate(a.get("steps", [])))
-                st.markdown(f"""<div style="background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.15);
-                    border-radius:14px;padding:24px;min-height:300px;">
-                    <h3 style="color:#fbbf24;margin:0 0 8px;">Activity Guide</h3>
-                    <div style="color:rgba(255,255,255,0.6);font-size:14px;margin-bottom:16px;">{a.get('instruction','')}</div>
-                    <div style="color:rgba(255,255,255,0.4);font-size:12px;margin-bottom:8px;">Duration: {a.get('duration_seconds',0)//60} min {a.get('duration_seconds',0)%60} sec</div>
-                    {steps_html}
-                </div>""", unsafe_allow_html=True)
-
-        else:
-            st.markdown("""<div style="background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.08);
-                border-radius:14px;padding:60px 24px;text-align:center;min-height:300px;
-                display:flex;flex-direction:column;justify-content:center;align-items:center;">
-                <div style="font-size:48px;margin-bottom:16px;opacity:0.3;">🎓</div>
-                <div style="color:rgba(255,255,255,0.3);font-size:14px;">
-                    Ask a question to see visuals on the smart board<br><br>
-                    <span style="font-size:12px;color:rgba(255,255,255,0.2);">
-                    Try: "Photosynthesis samjhao" | "Quiz lagao" | "Translate this" | "Activity guide do"</span>
-                </div>
-            </div>""", unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div class="empty-state">
+            <div class="empty-icon">🎓</div>
+            <div class="empty-title">Ready to teach?</div>
+            <div class="empty-sub">Speak or type a question to get started.<br>Try the quick examples in the sidebar.</div>
+        </div>
+        """, unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
