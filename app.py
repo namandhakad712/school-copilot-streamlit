@@ -390,14 +390,22 @@ def render_sidebar():
         """, unsafe_allow_html=True)
 
         # ─── API Key ───
-        api_key = st.text_input(
-            "🔑 API Key",
-            value=os.getenv("MISTRAL_API_KEY", ""),
-            type="password",
-            placeholder="sk-...",
-        )
-        if api_key:
-            os.environ["MISTRAL_API_KEY"] = api_key
+        env_key = os.getenv("MISTRAL_API_KEY", "")
+        if env_key:
+            st.markdown("""
+            <div style="background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.2);border-radius:8px;padding:8px 12px;margin-bottom:12px;">
+                <span style="color:#00d4aa;font-size:11px;font-weight:700;">API Key</span><br>
+                <span style="color:rgba(255,255,255,0.5);font-size:11px;">Loaded from environment</span>
+            </div>
+            """, unsafe_allow_html=True)
+            api_key = env_key
+        else:
+            api_key = st.text_input(
+                "🔑 API Key",
+                value="",
+                type="password",
+                placeholder="sk-...",
+            )
 
         st.markdown('<div style="height:6px"></div>', unsafe_allow_html=True)
 
