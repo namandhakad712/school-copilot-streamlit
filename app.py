@@ -371,6 +371,7 @@ def init_session():
         "last_transcript": "", "last_timing": {}, "last_words": [],
         "quiz_score": {"correct": 0, "total": 0},
         "processing": False, "last_ask_time": 0,
+        "last_audio_hash": "",  # track processed audio to auto-submit new recordings
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -758,27 +759,31 @@ def render_karaoke_captions(audio_b64: str, words: list[dict], speech_text: str)
 # EXPORT — Generate stylish standalone HTML
 # ═══════════════════════════════════════════════════════════════
 def generate_export_html(response, transcript: str, audio_b64: str = "", words: list[dict] | None = None) -> str:
-    """Generate a self-contained stylish HTML file with concept points, subtitles, and audio."""
-    import base64 as b64
+    """Generate a self-contained stylish HTML file with ALL sections."""
 
-    # Build subtitles JSON
-    subs_json = json.dumps(words) if words else "[]"
+    # ─── Mode-specific content ───
+    mode_section = ""
 
-    # Build concept section
-    concept_html = ""
     if response.mode == "SIMPLIFY" and response.screen_data:
         sd = response.screen_data
         points_html = "".join(
             f'<div style="background:rgba(0,212,170,0.04);border-left:3px solid #00d4aa;border-radius:0 10px 10px 0;padding:14px 18px;margin:8px 0;color:rgba(255,255,255,0.7);font-size:15px;line-height:1.6;"><strong style="color:#00d4aa;">{i+1}.</strong> {p}</div>'
             for i, p in enumerate(sd.points)
         )
-        concept_html = f"""
-        <div style="margin-bottom:32px;">
-            <div style="color:#00d4aa;font-size:11px;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:8px;">Concept</div>
+        cue_html = ""
+        if sd.visual_cue:
+            cue_html = f"""
+            <div style="background:linear-gradient(135deg,rgba(0,212,170,0.04),transparent);border:1px solid rgba(0,212,170,0.1);border-radius:14px;padding:20px;margin-top:16px;text-align:center;">
+                <div style="color:#00d4aa;font-size:10px;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:8px;">Smart Board</div>
+                <div style="color:rgba(255,255,255,0.5);font-size:13px;font-style:italic;">{sd.visual_cue}</div>
+            </div>"""
+        mode_section = f"""
+        <div class="section-block">
+            <div class="section-tag" style="color:#00d4aa;">Concept</div>
             <h2 style="color:white;font-size:24px;font-weight:800;margin:0 0 16px;background:linear-gradient(135deg,#00d4aa,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">{sd.title}</h2>
             {points_html}
-        </div>
-        """
+            {cue_html}
+        </div>"""
 
     elif response.mode == "QUIZ" and response.quiz_data:
         qd = response.quiz_data
@@ -789,15 +794,55 @@ def generate_export_html(response, transcript: str, audio_b64: str = "", words: 
                 for j, o in enumerate(q.options)
             )
             qs_html += f'<div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:16px;margin:12px 0;"><div style="color:rgba(255,255,255,0.85);font-weight:600;margin-bottom:8px;">Q{qi+1}. {q.question}</div>{opts}<div style="color:#34d399;font-size:12px;margin-top:6px;">Answer: {q.options[q.correct_index]}</div></div>'
-        concept_html = f"""
-        <div style="margin-bottom:32px;">
-            <div style="color:#a78bfa;font-size:11px;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:8px;">Quiz</div>
+        mode_section = f"""
+        <div class="section-block">
+            <div class="section-tag" style="color:#a78bfa;">Quiz</div>
             <h2 style="color:white;font-size:22px;font-weight:800;margin:0 0 16px;">{qd.topic}</h2>
             {qs_html}
-        </div>
-        """
+        </div>"""
 
-    # Build subtitles HTML
+    elif response.mode == "TRANSLATE" and response.translation:
+        t = response.translation
+        mode_section = f"""
+        <div class="section-block">
+            <div class="section-tag" style="color:#60A5FA;">Translation</div>
+            <div style="background:linear-gradient(135deg,rgba(124,58,237,0.05),rgba(59,130,246,0.05));border:1px solid rgba(124,58,237,0.12);border-radius:16px;padding:32px;text-align:center;">
+                <div style="color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">Original</div>
+                <div style="color:rgba(255,255,255,0.6);font-size:16px;margin-bottom:24px;">{t.get("original","")}</div>
+                <div style="color:rgba(255,255,255,0.2);font-size:28px;margin-bottom:24px;">↕</div>
+                <div style="color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">Translated</div>
+                <div style="color:white;font-size:22px;font-weight:700;">{t.get("translated","")}</div>
+                <div style="color:rgba(255,255,255,0.3);font-size:11px;margin-top:14px;">{t.get("language","")}</div>
+            </div>
+        </div>"""
+
+    elif response.mode == "ACTIVITY" and response.activity:
+        a = response.activity
+        dur = a.get("duration_seconds", 0)
+        steps_html = "".join(
+            f'<div style="padding:10px 16px;margin:5px 0;background:rgba(255,255,255,0.04);border-radius:10px;color:rgba(255,255,255,0.6);font-size:14px;border-left:3px solid #f59e0b;"><b style="color:#f59e0b;">{i+1}.</b> {s}</div>'
+            for i, s in enumerate(a.get("steps", []))
+        )
+        mode_section = f"""
+        <div class="section-block">
+            <div class="section-tag" style="color:#f59e0b;">Activity</div>
+            <h2 style="color:white;font-size:20px;font-weight:800;margin:0 0 8px;">{a.get("instruction","")}</h2>
+            <div style="color:rgba(255,255,255,0.3);font-size:12px;margin-bottom:16px;">Duration: {dur//60} min {dur%60} sec</div>
+            {steps_html}
+        </div>"""
+
+    # ─── Spoken Text (TTS content) ───
+    spoken_section = ""
+    if response.audio_speech:
+        spoken_section = f"""
+        <div class="section-block">
+            <div class="section-tag" style="color:#f59e0b;">Spoken Text (TTS)</div>
+            <div style="background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.1);border-radius:12px;padding:20px;">
+                <div style="color:rgba(255,255,255,0.7);font-size:14px;line-height:1.8;white-space:pre-wrap;">{response.audio_speech}</div>
+            </div>
+        </div>"""
+
+    # ─── Subtitles ───
     subtitles_section = ""
     if words:
         sub_lines = []
@@ -808,25 +853,23 @@ def generate_export_html(response, transcript: str, audio_b64: str = "", words: 
             s_e = int(w["end"] % 60)
             sub_lines.append(f'<div class="sub-line"><span class="sub-time">{m_s:02d}:{s_s:02d} → {m_e:02d}:{s_e:02d}</span> <span class="sub-word">{w["word"]}</span></div>')
         subtitles_section = f"""
-        <div style="margin-bottom:32px;">
-            <div style="color:#7c3aed;font-size:11px;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:12px;">Subtitles</div>
+        <div class="section-block">
+            <div class="section-tag" style="color:#7c3aed;">Subtitles</div>
             <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px;max-height:300px;overflow-y:auto;font-family:monospace;font-size:13px;">
                 {"".join(sub_lines)}
             </div>
-        </div>
-        """
+        </div>"""
 
-    # Audio embed
+    # ─── Audio ───
     audio_section = ""
     if audio_b64:
         audio_section = f"""
-        <div style="margin-bottom:32px;">
-            <div style="color:#f59e0b;font-size:11px;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:12px;">Audio</div>
+        <div class="section-block">
+            <div class="section-tag" style="color:#ef4444;">Audio</div>
             <audio controls style="width:100%;border-radius:8px;">
                 <source src="data:audio/mp3;base64,{audio_b64}" type="audio/mp3">
             </audio>
-        </div>
-        """
+        </div>"""
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -844,6 +887,8 @@ body{{font-family:'Inter',system-ui,sans-serif;background:#050510;color:rgba(255
 .transcript-bar{{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px 20px;margin-bottom:32px;}}
 .transcript-bar .label{{color:rgba(255,255,255,0.3);font-size:10px;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;}}
 .transcript-bar .text{{color:rgba(255,255,255,0.85);font-size:15px;}}
+.section-block{{margin-bottom:32px;}}
+.section-tag{{font-size:11px;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:12px;}}
 .sub-line{{padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);}}
 .sub-time{{color:rgba(255,255,255,0.25);font-size:11px;margin-right:8px;}}
 .sub-word{{color:rgba(255,255,255,0.7);}}
@@ -865,7 +910,8 @@ body{{font-family:'Inter',system-ui,sans-serif;background:#050510;color:rgba(255
     </div>
 
     {audio_section}
-    {concept_html}
+    {mode_section}
+    {spoken_section}
     {subtitles_section}
 
     <div class="footer">
@@ -937,13 +983,24 @@ def main():
     example_q = st.session_state.pop("example_query", "")
     text_value = st.text_input("question", value=example_q, placeholder="Type or speak in Hinglish...", label_visibility="collapsed")
 
+    # Auto-detect new voice recording and submit
+    auto_submit = False
+    if audio_value and not st.session_state.processing:
+        ab = audio_value.getvalue()
+        if ab:
+            import hashlib
+            audio_hash = hashlib.md5(ab).hexdigest()
+            if audio_hash != st.session_state.last_audio_hash:
+                auto_submit = True
+                st.session_state.last_audio_hash = audio_hash
+
     c1, c2 = st.columns([1, 4])
     with c1:
         is_processing = st.session_state.processing
         ask = st.button("Ask", type="primary", use_container_width=True, disabled=is_processing,
                         help="Processing..." if is_processing else "Ask a question")
 
-    if ask and not is_processing:
+    if (ask or auto_submit) and not is_processing:
         # Debounce: reject if less than 2 seconds since last ask
         now = time.time()
         if now - st.session_state.last_ask_time < 2:
