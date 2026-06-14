@@ -81,7 +81,7 @@ st.markdown("""
 
 /* ─── Section Headers ─── */
 .section-label {
-    color: var(--text3);
+    color: rgba(255,255,255,0.5);
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 2px;
@@ -329,9 +329,16 @@ section[data-testid="stSidebar"] .section-label {
     color: rgba(255,255,255,0.5) !important;
 }
 section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] {
-    color: rgba(255,255,255,0.75) !important;
+    color: rgba(255,255,255,0.8) !important;
     font-size: 12px !important;
     font-weight: 600 !important;
+}
+section[data-testid="stSidebar"] [data-baseweb="select"] span,
+section[data-testid="stSidebar"] [data-baseweb="select"] div {
+    color: rgba(255,255,255,0.85) !important;
+}
+section[data-testid="stSidebar"] .stMarkdown {
+    color: rgba(255,255,255,0.7) !important;
 }
 
 /* Streamlit overrides */
@@ -1045,9 +1052,11 @@ def main():
         # Extract word timestamps for karaoke captions
         word_timestamps = []
         if audio_b64 and voice_id:
-            with st.spinner("Syncing captions..."):
-                word_timestamps = get_word_timestamps(client, audio_b64)
-                timing["caption_ms"] = int(time.time() * 1000)  # placeholder
+            try:
+                with st.spinner("Syncing captions..."):
+                    word_timestamps = get_word_timestamps(client, audio_b64)
+            except Exception:
+                word_timestamps = []
 
         timing["total_ms"] = sum(v for v in timing.values() if isinstance(v, int))
 
@@ -1068,9 +1077,20 @@ def main():
         if st.session_state.last_transcript:
             st.markdown(f'<div class="transcript-box"><div style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:4px;">Transcript</div><div style="color:var(--text);font-size:15px;">{st.session_state.last_transcript}</div></div>', unsafe_allow_html=True)
 
-        # Karaoke Captions
+        # Audio + Karaoke Captions
         if st.session_state.last_audio:
-            render_karaoke_captions(st.session_state.last_audio, words, resp.audio_speech)
+            if words:
+                render_karaoke_captions(st.session_state.last_audio, words, resp.audio_speech)
+            else:
+                # Fallback: basic audio player when no word timestamps
+                st.audio(base64.b64decode(st.session_state.last_audio), format="audio/mp3", autoplay=True)
+                if resp.audio_speech:
+                    st.markdown(f"""
+                    <div style="background:var(--glass);border:1px solid var(--glass-border);border-radius:14px;padding:20px;margin:12px 0;">
+                        <div style="color:var(--primary);font-size:10px;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:8px;">Spoken Text</div>
+                        <div style="color:var(--text);font-size:15px;line-height:1.8;">{resp.audio_speech}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
         c_resp, c_board = st.columns([3, 2])
         with c_resp:
