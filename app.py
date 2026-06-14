@@ -289,6 +289,34 @@ section[data-testid="stSidebar"] .stMarkdown li {
 section[data-testid="stSidebar"] hr {
     border-color: rgba(255,255,255,0.06) !important;
 }
+section[data-testid="stSidebar"] label {
+    color: rgba(255,255,255,0.7) !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+}
+section[data-testid="stSidebar"] .stSelectbox label,
+section[data-testid="stSidebar"] .stTextInput label,
+section[data-testid="stSidebar"] .stSlider label {
+    color: rgba(255,255,255,0.7) !important;
+}
+section[data-testid="stSidebar"] [data-baseweb="select"] {
+    background: rgba(255,255,255,0.04) !important;
+    border-color: rgba(255,255,255,0.1) !important;
+    color: rgba(255,255,255,0.8) !important;
+}
+section[data-testid="stSidebar"] [data-baseweb="input"] {
+    background: rgba(255,255,255,0.04) !important;
+    border-color: rgba(255,255,255,0.1) !important;
+    color: rgba(255,255,255,0.8) !important;
+}
+section[data-testid="stSidebar"] .streamlit-expanderHeader {
+    color: rgba(255,255,255,0.7) !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+}
+section[data-testid="stSidebar"] [data-baseweb="slider"] {
+    accent-color: var(--primary) !important;
+}
 
 /* Streamlit overrides */
 .stButton > button {
@@ -405,16 +433,15 @@ def render_sidebar():
         for lang, voices in VOICE_CATALOG.items():
             for vid, vdesc in voices:
                 voice_options.append(vid)
-                voice_labels.append(f"{vdesc}")
+                voice_labels.append(f"{lang}: {vdesc}")
 
         default_idx = voice_options.index("en_paul_neutral") if "en_paul_neutral" in voice_options else 0
-        selected_voice_idx = st.selectbox(
+        voice_id = st.selectbox(
             "Voice",
-            range(len(voice_options)),
-            format_func=lambda i: voice_labels[i],
+            voice_options,
             index=default_idx,
+            format_func=lambda v: next((l for o, l in zip(voice_options, voice_labels) if o == v), v),
         )
-        voice_id = voice_options[selected_voice_idx]
 
         # Voice preview
         st.markdown(f"""

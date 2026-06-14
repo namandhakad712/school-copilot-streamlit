@@ -270,7 +270,7 @@ render();
 </script>
 </body></html>"""
 
-    st.components.v1.html(html, height=480, scrolling=False)
+    st.components.v1.html(html, height=600, scrolling=True)
 
 
 def _render_points_fallback(title: str, points: list[str], cue: str):
@@ -345,4 +345,4 @@ render();
 </script>
 </body></html>"""
 
-    st.components.v1.html(html, height=380, scrolling=False)
+    st.components.v1.html(html, height=500, scrolling=True)
