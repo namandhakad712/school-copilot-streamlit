@@ -440,6 +440,43 @@ def synthesize_speech(client: Mistral, text: str, voice_id: str = "en_paul_neutr
         return None, 0
 
 
+def get_word_timestamps(client: Mistral, audio_b64: str) -> list[dict]:
+    """Get word-level timestamps from TTS audio via STT."""
+    try:
+        import base64 as b64
+        audio_bytes = b64.b64decode(audio_b64)
+        transcription = client.audio.transcriptions.complete(
+            model="voxtral-mini-latest",
+            language="hi",
+            file={"fileName": "tts_output.mp3", "content": audio_bytes},
+            timestamp_granularities=["word"],
+        )
+        words = []
+        if hasattr(transcription, "words") and transcription.words:
+            for w in transcription.words:
+                words.append({
+                    "word": w.word,
+                    "start": round(w.start, 3),
+                    "end": round(w.end, 3),
+                })
+        elif hasattr(transcription, "segments") and transcription.segments:
+            for seg in transcription.segments:
+                if hasattr(seg, "words") and seg.words:
+                    for w in seg.words:
+                        words.append({
+                            "word": w.word,
+                            "start": round(w.start, 3),
+                            "end": round(w.end, 3),
+                        })
+        if not words:
+            # Fallback: estimate timestamps from text + audio duration
+            return []
+        return words
+    except Exception as e:
+        print(f"Word timestamp extraction failed: {e}")
+        return []
+
+
 # ═══════════════════════════════════════════════════════════════
 # RESPONSE PARSING — With retry logic
 # ═══════════════════════════════════════════════════════════════

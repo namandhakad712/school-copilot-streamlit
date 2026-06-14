@@ -1,11 +1,12 @@
 import base64
+import json
 import os
 import time
 
 import streamlit as st
 from dotenv import load_dotenv
 
-from lib.client import get_client, transcribe, generate_response, synthesize_speech
+from lib.client import get_client, transcribe, generate_response, synthesize_speech, get_word_timestamps
 from lib.visuals import render_interactive_visual
 
 load_dotenv()
@@ -352,7 +353,8 @@ section[data-testid="stSidebar"] [data-baseweb="slider"] {
 def init_session():
     defaults = {
         "history": [], "status": "idle", "last_response": None, "last_audio": None,
-        "last_transcript": "", "last_timing": {}, "quiz_score": {"correct": 0, "total": 0},
+        "last_transcript": "", "last_timing": {}, "last_words": [],
+        "quiz_score": {"correct": 0, "total": 0},
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -623,6 +625,241 @@ def render_timing(timing):
         st.markdown(f'<div class="timing-bar">{"".join(chips)}</div>', unsafe_allow_html=True)
 
 
+# ═══════════════════════════════════════════════════════════════
+# KARAOKE CAPTIONS — Word-level synced captions
+# ═══════════════════════════════════════════════════════════════
+def render_karaoke_captions(audio_b64: str, words: list[dict], speech_text: str):
+    """Render karaoke-style word-synced captions with audio playback."""
+    if not audio_b64 or not words:
+        # Fallback: simple transcript display
+        if speech_text:
+            st.markdown(f"""
+            <div style="background:var(--glass);border:1px solid var(--glass-border);border-radius:14px;padding:20px;margin:12px 0;">
+                <div style="color:var(--primary);font-size:10px;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:8px;">Spoken Text</div>
+                <div style="color:var(--text);font-size:15px;line-height:1.8;">{speech_text}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        return
+
+    words_json = json.dumps(words)
+    st.markdown(f"""
+    <div id="karaoke-box" style="background:linear-gradient(135deg,rgba(0,212,170,0.04),rgba(124,58,237,0.04));
+        border:1px solid rgba(0,212,170,0.12);border-radius:14px;padding:20px;margin:12px 0;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:#ef4444;animation:pulse 1s infinite;"></div>
+            <span style="color:var(--primary);font-size:10px;text-transform:uppercase;letter-spacing:2px;font-weight:700;">Live Captions</span>
+        </div>
+        <div id="caption-text" style="color:var(--text);font-size:18px;line-height:2;min-height:60px;font-weight:500;">
+            <span style="color:var(--text3);">Waiting for audio...</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;align-items:center;">
+            <div id="caption-progress" style="flex:1;height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;">
+                <div id="caption-progress-fill" style="height:100%;width:0%;background:linear-gradient(90deg,#00d4aa,#7c3aed);border-radius:2px;transition:width 0.1s;"></div>
+            </div>
+            <span id="caption-time" style="color:var(--text3);font-size:11px;font-variant-numeric:tabular-nums;">0:00</span>
+        </div>
+    </div>
+
+    <script>
+    (function() {{
+        const words = {words_json};
+        const audioB64 = "{audio_b64}";
+        const captionEl = document.getElementById('caption-text');
+        const progressFill = document.getElementById('caption-progress-fill');
+        const timeEl = document.getElementById('caption-time');
+
+        // Create audio element
+        const audio = new Audio('data:audio/mp3;base64,' + audioB64);
+        audio.id = 'karaoke-audio';
+
+        // Insert audio player before karaoke box
+        const box = document.getElementById('karaoke-box');
+        const playerDiv = document.createElement('div');
+        playerDiv.style.cssText = 'margin-bottom:12px;';
+        playerDiv.appendChild(audio);
+        audio.style.cssText = 'width:100%;border-radius:8px;outline:none;height:40px;';
+        box.insertBefore(playerDiv, box.children[1]);
+
+        let currentIdx = -1;
+
+        function updateCaption() {{
+            if (!audio.paused && !audio.ended) {{
+                const t = audio.currentTime;
+
+                // Find current word
+                let idx = -1;
+                for (let i = 0; i < words.length; i++) {{
+                    if (t >= words[i].start && t <= words[i].end) {{
+                        idx = i;
+                        break;
+                    }}
+                }}
+
+                // Update display
+                if (idx !== currentIdx) {{
+                    currentIdx = idx;
+                    let html = '';
+                    for (let i = 0; i < words.length; i++) {{
+                        const w = words[i];
+                        const isPast = t > w.end;
+                        const isCurrent = i === idx;
+                        let style = 'padding:2px 3px;border-radius:4px;transition:all 0.15s;display:inline-block;margin:2px 0;';
+                        if (isCurrent) {{
+                            style += 'background:rgba(0,212,170,0.2);color:#00d4aa;font-weight:700;transform:scale(1.05);';
+                        }} else if (isPast) {{
+                            style += 'color:rgba(255,255,255,0.35);';
+                        }} else {{
+                            style += 'color:rgba(255,255,255,0.7);';
+                        }}
+                        html += '<span style="' + style + '">' + w.word + '</span> ';
+                    }}
+                    captionEl.innerHTML = html;
+                }}
+
+                // Progress
+                if (audio.duration) {{
+                    progressFill.style.width = (t / audio.duration * 100) + '%';
+                    const m = Math.floor(t / 60);
+                    const s = Math.floor(t % 60);
+                    timeEl.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+                }}
+
+                requestAnimationFrame(updateCaption);
+            }}
+        }}
+
+        audio.addEventListener('play', () => requestAnimationFrame(updateCaption));
+        audio.addEventListener('ended', () => {{
+            captionEl.innerHTML = '<span style="color:var(--text3);">Playback complete</span>';
+            progressFill.style.width = '100%';
+        }});
+    }})();
+    </script>
+    """, unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════════
+# EXPORT — Generate stylish standalone HTML
+# ═══════════════════════════════════════════════════════════════
+def generate_export_html(response, transcript: str, audio_b64: str = "", words: list[dict] | None = None) -> str:
+    """Generate a self-contained stylish HTML file with concept points, subtitles, and audio."""
+    import base64 as b64
+
+    # Build subtitles JSON
+    subs_json = json.dumps(words) if words else "[]"
+
+    # Build concept section
+    concept_html = ""
+    if response.mode == "SIMPLIFY" and response.screen_data:
+        sd = response.screen_data
+        points_html = "".join(
+            f'<div style="background:rgba(0,212,170,0.04);border-left:3px solid #00d4aa;border-radius:0 10px 10px 0;padding:14px 18px;margin:8px 0;color:rgba(255,255,255,0.7);font-size:15px;line-height:1.6;"><strong style="color:#00d4aa;">{i+1}.</strong> {p}</div>'
+            for i, p in enumerate(sd.points)
+        )
+        concept_html = f"""
+        <div style="margin-bottom:32px;">
+            <div style="color:#00d4aa;font-size:11px;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:8px;">Concept</div>
+            <h2 style="color:white;font-size:24px;font-weight:800;margin:0 0 16px;background:linear-gradient(135deg,#00d4aa,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">{sd.title}</h2>
+            {points_html}
+        </div>
+        """
+
+    elif response.mode == "QUIZ" and response.quiz_data:
+        qd = response.quiz_data
+        qs_html = ""
+        for qi, q in enumerate(qd.questions):
+            opts = "".join(
+                f'<div style="padding:8px 14px;margin:4px 0;border-radius:8px;background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.5);font-size:14px;">{chr(65+j)}. {o}</div>'
+                for j, o in enumerate(q.options)
+            )
+            qs_html += f'<div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:16px;margin:12px 0;"><div style="color:rgba(255,255,255,0.85);font-weight:600;margin-bottom:8px;">Q{qi+1}. {q.question}</div>{opts}<div style="color:#34d399;font-size:12px;margin-top:6px;">Answer: {q.options[q.correct_index]}</div></div>'
+        concept_html = f"""
+        <div style="margin-bottom:32px;">
+            <div style="color:#a78bfa;font-size:11px;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:8px;">Quiz</div>
+            <h2 style="color:white;font-size:22px;font-weight:800;margin:0 0 16px;">{qd.topic}</h2>
+            {qs_html}
+        </div>
+        """
+
+    # Build subtitles HTML
+    subtitles_section = ""
+    if words:
+        sub_lines = []
+        for w in words:
+            m_s = int(w["start"] // 60)
+            s_s = int(w["start"] % 60)
+            m_e = int(w["end"] // 60)
+            s_e = int(w["end"] % 60)
+            sub_lines.append(f'<div class="sub-line"><span class="sub-time">{m_s:02d}:{s_s:02d} → {m_e:02d}:{s_e:02d}</span> <span class="sub-word">{w["word"]}</span></div>')
+        subtitles_section = f"""
+        <div style="margin-bottom:32px;">
+            <div style="color:#7c3aed;font-size:11px;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:12px;">Subtitles</div>
+            <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px;max-height:300px;overflow-y:auto;font-family:monospace;font-size:13px;">
+                {"".join(sub_lines)}
+            </div>
+        </div>
+        """
+
+    # Audio embed
+    audio_section = ""
+    if audio_b64:
+        audio_section = f"""
+        <div style="margin-bottom:32px;">
+            <div style="color:#f59e0b;font-size:11px;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:12px;">Audio</div>
+            <audio controls style="width:100%;border-radius:8px;">
+                <source src="data:audio/mp3;base64,{audio_b64}" type="audio/mp3">
+            </audio>
+        </div>
+        """
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Classroom Co-Pilot — {response.mode}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+*{{margin:0;padding:0;box-sizing:border-box;}}
+body{{font-family:'Inter',system-ui,sans-serif;background:#050510;color:rgba(255,255,255,0.85);min-height:100vh;padding:32px;}}
+.container{{max-width:900px;margin:0 auto;}}
+.header{{text-align:center;margin-bottom:40px;padding:32px;background:linear-gradient(135deg,rgba(0,212,170,0.06),rgba(124,58,237,0.06));border:1px solid rgba(0,212,170,0.1);border-radius:20px;}}
+.header h1{{font-size:28px;font-weight:900;background:linear-gradient(135deg,#00d4aa,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px;}}
+.header .meta{{color:rgba(255,255,255,0.3);font-size:12px;}}
+.transcript-bar{{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px 20px;margin-bottom:32px;}}
+.transcript-bar .label{{color:rgba(255,255,255,0.3);font-size:10px;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;}}
+.transcript-bar .text{{color:rgba(255,255,255,0.85);font-size:15px;}}
+.sub-line{{padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);}}
+.sub-time{{color:rgba(255,255,255,0.25);font-size:11px;margin-right:8px;}}
+.sub-word{{color:rgba(255,255,255,0.7);}}
+.sub-line:hover .sub-word{{color:#00d4aa;}}
+.sub-line:hover{{background:rgba(0,212,170,0.03);}}
+.footer{{text-align:center;margin-top:40px;padding:20px;border-top:1px solid rgba(255,255,255,0.06);color:rgba(255,255,255,0.2);font-size:11px;}}
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>Classroom Co-Pilot AI</h1>
+        <div class="meta">Generated by Classroom Co-Pilot AI — Voice-First Teaching Assistant</div>
+    </div>
+
+    <div class="transcript-bar">
+        <div class="label">Teacher's Question</div>
+        <div class="text">{transcript}</div>
+    </div>
+
+    {audio_section}
+    {concept_html}
+    {subtitles_section}
+
+    <div class="footer">
+        Classroom Co-Pilot AI — Built for Haryana Government School Smart Classrooms
+    </div>
+</div>
+</body>
+</html>"""
+
+
 def render_smart_board(response):
     if response.mode == "SIMPLIFY":
         vis = getattr(response, "visualization", None)
@@ -719,11 +956,20 @@ def main():
             with st.spinner("Generating speech..."):
                 audio_b64, tts_ms = synthesize_speech(client, resp.audio_speech, voice_id)
                 timing["tts_ms"] = tts_ms
+
+        # Extract word timestamps for karaoke captions
+        word_timestamps = []
+        if audio_b64 and voice_id:
+            with st.spinner("Syncing captions..."):
+                word_timestamps = get_word_timestamps(client, audio_b64)
+                timing["caption_ms"] = int(time.time() * 1000)  # placeholder
+
         timing["total_ms"] = sum(v for v in timing.values() if isinstance(v, int))
 
         st.session_state.last_response = resp
         st.session_state.last_audio = audio_b64
         st.session_state.last_timing = timing
+        st.session_state.last_words = word_timestamps
         st.session_state.status = "speaking"
         st.session_state.history.append({"role": "assistant", "content": resp.audio_speech[:200]})
         st.rerun()
@@ -731,12 +977,14 @@ def main():
     # Response
     if st.session_state.last_response:
         resp = st.session_state.last_response
+        words = st.session_state.get("last_words", [])
 
         if st.session_state.last_transcript:
             st.markdown(f'<div class="transcript-box"><div style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:4px;">Transcript</div><div style="color:var(--text);font-size:15px;">{st.session_state.last_transcript}</div></div>', unsafe_allow_html=True)
 
+        # Karaoke Captions
         if st.session_state.last_audio:
-            st.audio(base64.b64decode(st.session_state.last_audio), format="audio/mp3", autoplay=True)
+            render_karaoke_captions(st.session_state.last_audio, words, resp.audio_speech)
 
         c_resp, c_board = st.columns([3, 2])
         with c_resp:
@@ -749,6 +997,18 @@ def main():
         with c_board:
             st.markdown('<div class="section-label">Smart Board</div>', unsafe_allow_html=True)
             render_smart_board(resp)
+
+        # Export Button
+        st.markdown('<div style="height:16px"></div>', unsafe_allow_html=True)
+        export_html = generate_export_html(resp, st.session_state.last_transcript, st.session_state.last_audio, words)
+        st.download_button(
+            label="Export HTML",
+            data=export_html,
+            file_name=f"classroom-copilot-{resp.mode.lower()}.html",
+            mime="text/html",
+            type="primary",
+            use_container_width=True,
+        )
 
     else:
         st.markdown("""
