@@ -433,26 +433,7 @@ def synthesize_speech(client: Mistral, text: str, voice_id: str = "en_paul_neutr
             response_format="mp3",
         )
         tts_ms = int((time.time() - t0) * 1000)
-
-        # Try multiple attribute paths for audio data
-        audio_data = None
-        if hasattr(response, "audio_data") and response.audio_data:
-            audio_data = response.audio_data
-        elif hasattr(response, "audio") and response.audio:
-            audio_data = response.audio
-        else:
-            # Try iterating as event stream
-            try:
-                with response as event_stream:
-                    chunks = []
-                    for event in event_stream:
-                        if hasattr(event, "data") and hasattr(event.data, "audio_data"):
-                            chunks.append(event.data.audio_data)
-                    if chunks:
-                        audio_data = "".join(chunks)
-            except Exception:
-                pass
-
+        audio_data = getattr(response, "audio_data", None)
         return audio_data, tts_ms
     except Exception as e:
         print(f"TTS failed: {e}")

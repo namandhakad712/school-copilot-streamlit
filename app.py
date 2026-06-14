@@ -996,21 +996,12 @@ def main():
                 audio_b64, tts_ms = synthesize_speech(client, resp.audio_speech, voice_id)
                 timing["tts_ms"] = tts_ms
 
-        # Extract word timestamps for karaoke captions
-        word_timestamps = []
-        if audio_b64 and voice_id:
-            try:
-                with st.spinner("Syncing captions..."):
-                    word_timestamps = get_word_timestamps(client, audio_b64)
-            except Exception:
-                word_timestamps = []
-
         timing["total_ms"] = sum(v for v in timing.values() if isinstance(v, int))
 
         st.session_state.last_response = resp
         st.session_state.last_audio = audio_b64
         st.session_state.last_timing = timing
-        st.session_state.last_words = word_timestamps
+        st.session_state.last_words = []
         st.session_state.status = "speaking"
         st.session_state.history.append({"role": "assistant", "content": resp.audio_speech[:200]})
         st.session_state.processing = False
