@@ -487,6 +487,8 @@ def generate_response(
     transcript: str,
     class_level: str = "",
     subject: str = "auto",
+    base_temperature: float = 0.4,
+    max_tokens: int = 4000,
     max_retries: int = 2,
 ) -> tuple[AssistantResponse | None, dict]:
     """Generate response with retry logic and validation.
@@ -514,8 +516,8 @@ def generate_response(
     last_error = None
     for attempt in range(max_retries + 1):
         try:
-            # Progressive temperature: 0.3 → 0.5 → 0.7
-            temp = 0.3 + (attempt * 0.2)
+            # Progressive temperature from user-selected base
+            temp = base_temperature + (attempt * 0.15)
 
             t0 = time.time()
             chat_response = client.chat.complete(
@@ -528,7 +530,7 @@ def generate_response(
                         "schema": RESPONSE_SCHEMA,
                     }
                 },
-                max_tokens=4000,
+                max_tokens=max_tokens,
                 temperature=temp,
                 top_p=0.92,
                 presence_penalty=0.15,

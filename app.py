@@ -332,6 +332,49 @@ def init_session():
 
 
 # ═══════════════════════════════════════════════════════════════
+# VOICE CATALOG — All 30 Mistral TTS preset voices
+# ═══════════════════════════════════════════════════════════════
+VOICE_CATALOG = {
+    "English (US)": [
+        ("en_paul_neutral", "Paul — Warm male, neutral tone"),
+        ("en_oliver_confident", "Oliver — Confident male"),
+        ("en_jane_neutral", "Jane — Friendly female"),
+        ("en_marie_confident", "Marie — Confident female"),
+        ("en_alexandra_confident", "Alexandra — Bold female"),
+        ("en_andrew_confident", "Andrew — Deep male"),
+        ("en_bella_confident", "Bella — Elegant female"),
+        ("en_leo_confident", "Leo — Energetic male"),
+    ],
+    "English (UK)": [
+        ("gb_jane_confident", "Jane — British female"),
+        ("gb_geoffrey_confident", "Geoffrey — British male"),
+        ("gb_charlotte_confident", "Charlotte — British elegant female"),
+        ("gb_james_confident", "James — British male"),
+    ],
+    "French": [
+        ("fr_alexandre_confident", "Alexandre — French male"),
+        ("fr_delphine_confident", "Delphine — French female"),
+        ("fr_henri_confident", "Henri — French male"),
+    ],
+    "German": [
+        ("de_klaus_confident", "Klaus — German male"),
+        ("de_lotte_confident", "Lotte — German female"),
+    ],
+    "Spanish": [
+        ("es_elsa_confident", "Elsa — Spanish female"),
+        ("es_alejandro_confident", "Alejandro — Spanish male"),
+    ],
+    "Italian": [
+        ("it_giulia_confident", "Giulia — Italian female"),
+        ("it_lorenzo_confident", "Lorenzo — Italian male"),
+    ],
+    "Portuguese": [
+        ("pt_ricardo_confident", "Ricardo — Portuguese male"),
+        ("pt_fernanda_confident", "Fernanda — Portuguese female"),
+    ],
+}
+
+# ═══════════════════════════════════════════════════════════════
 # SIDEBAR — All settings live here, clean and organized
 # ═══════════════════════════════════════════════════════════════
 def render_sidebar():
@@ -343,7 +386,7 @@ def render_sidebar():
         </div>
         """, unsafe_allow_html=True)
 
-        # API Key
+        # ─── API Key ───
         api_key = st.text_input(
             "API Key",
             value=os.getenv("MISTRAL_API_KEY", ""),
@@ -353,9 +396,38 @@ def render_sidebar():
         if api_key:
             os.environ["MISTRAL_API_KEY"] = api_key
 
-        st.markdown('<div style="height:4px"></div>', unsafe_allow_html=True)
+        st.markdown('<div style="height:6px"></div>', unsafe_allow_html=True)
 
-        # Class & Subject
+        # ─── Voice Selection (all 30 voices grouped by language) ───
+        st.markdown('<div class="section-label">Output Voice</div>', unsafe_allow_html=True)
+        voice_options = []
+        voice_labels = []
+        for lang, voices in VOICE_CATALOG.items():
+            for vid, vdesc in voices:
+                voice_options.append(vid)
+                voice_labels.append(f"{vdesc}")
+
+        default_idx = voice_options.index("en_paul_neutral") if "en_paul_neutral" in voice_options else 0
+        selected_voice_idx = st.selectbox(
+            "Voice",
+            range(len(voice_options)),
+            format_func=lambda i: voice_labels[i],
+            index=default_idx,
+        )
+        voice_id = voice_options[selected_voice_idx]
+
+        # Voice preview
+        st.markdown(f"""
+        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);
+            border-radius:8px;padding:8px 12px;margin-top:4px;">
+            <span style="color:rgba(255,255,255,0.3);font-size:10px;">VOICE ID</span><br>
+            <code style="color:var(--primary);font-size:11px;">{voice_id}</code>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown('<div style="height:6px"></div>', unsafe_allow_html=True)
+
+        # ─── Class & Subject ───
         col1, col2 = st.columns(2)
         with col1:
             class_level = st.selectbox("Class", ["", "6", "7", "8", "9", "10"],
@@ -364,21 +436,33 @@ def render_sidebar():
             subject = st.selectbox("Subject", ["auto", "Science", "Math"],
                                    format_func=lambda x: "All" if x == "auto" else x)
 
-        # Voice
-        voice_id = st.selectbox("Voice", [
-            "en_paul_neutral", "en_oliver_confident", "en_jane_neutral",
-            "en_marie_confident", "gb_jane_confident", "gb_geoffrey_confident",
-        ])
+        st.markdown('<div style="height:4px"></div>', unsafe_allow_html=True)
+
+        # ─── Advanced Settings (collapsible) ───
+        with st.expander("Advanced Settings", expanded=False):
+            temperature = st.slider("Creativity", 0.0, 1.0, 0.4, 0.05,
+                                    help="Lower = more focused, Higher = more creative")
+            max_tokens = st.slider("Max Response Length", 2000, 6000, 4000, 500,
+                                   help="Maximum tokens for LLM response")
+            st.markdown("""
+            <div style="color:rgba(255,255,255,0.25);font-size:10px;margin-top:4px;">
+                Temperature 0.3 = Focused & precise<br>
+                Temperature 0.5 = Balanced<br>
+                Temperature 0.7 = More creative variety
+            </div>
+            """, unsafe_allow_html=True)
 
         st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
 
-        # Quick examples
+        # ─── Quick Examples ───
         st.markdown('<div class="section-label">Quick Examples</div>', unsafe_allow_html=True)
         examples = [
             ("Photosynthesis samjhao", "🔬 Concept"),
             ("Newton laws ka quiz banao", "🧩 Quiz"),
             ("Mitochondria translate karo", "🌐 Translate"),
             ("Science experiment batao", "🧪 Activity"),
+            ("Periodic table samjhao", "🧬 Periodic Table"),
+            ("Pythagoras theorem padhao", "📐 Theorem"),
         ]
         for query, label in examples:
             if st.button(label, key=f"ex_{query}", use_container_width=True):
@@ -387,7 +471,7 @@ def render_sidebar():
 
         st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
 
-        # Score
+        # ─── Score ───
         if st.session_state.quiz_score["total"] > 0:
             sc = st.session_state.quiz_score
             pct = int(sc["correct"] / sc["total"] * 100)
@@ -401,7 +485,7 @@ def render_sidebar():
             </div>
             """, unsafe_allow_html=True)
 
-        # History
+        # ─── History ───
         if st.session_state.history:
             st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
             st.markdown('<div class="section-label">Recent</div>', unsafe_allow_html=True)
@@ -414,7 +498,7 @@ def render_sidebar():
                 st.session_state.quiz_score = {"correct": 0, "total": 0}
                 st.rerun()
 
-    return api_key, class_level, subject, voice_id
+    return api_key, class_level, subject, voice_id, temperature, max_tokens
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -545,7 +629,7 @@ def render_smart_board(response):
 # ═══════════════════════════════════════════════════════════════
 def main():
     init_session()
-    api_key, class_level, subject, voice_id = render_sidebar()
+    api_key, class_level, subject, voice_id, temperature, max_tokens = render_sidebar()
 
     # Hero
     st.markdown("""
@@ -598,7 +682,7 @@ def main():
         st.session_state.history.append({"role": "user", "content": transcript})
 
         with st.spinner("Thinking..."):
-            resp, timing = generate_response(client, transcript, class_level, subject)
+            resp, timing = generate_response(client, transcript, class_level, subject, temperature, max_tokens)
         if not resp:
             st.error("Failed."); st.stop()
         timing["stt_ms"] = stt_ms

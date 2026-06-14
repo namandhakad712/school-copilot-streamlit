@@ -1,4 +1,12 @@
-# Classroom Co-Pilot AI
+
+```
+ ██████╗ █████╗ ██████╗  █████╗     ███████╗██╗   ██╗███████╗███╗   ██╗████████╗    ██╗   ██╗██████╗ 
+██╔════╝██╔══██╗██╔══██╗██╔══██╗    ██╔════╝██║   ██║██╔════╝████╗  ██║╚══██╔══╝    ██║   ██║██╔══██╗
+██║     ███████║██████╔╝███████║    ███████╗██║   ██║█████╗  ██╔██╗ ██║   ██║       ██║   ██║██████╔╝
+██║     ██╔══██║██╔══██╗██╔══██║    ╚════██║██║   ██║██╔══╝  ██║╚██╗██║   ██║       ╚██╗ ██╔╝██╔═══╝ 
+╚██████╗██║  ██║██║  ██║██║  ██║    ███████║╚██████╔╝███████╗██║ ╚████║   ██║        ╚████╔╝ ██║     
+ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝    ╚══════╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝         ╚═══╝  ╚═╝     
+```
 
 ### Voice-First AI Teaching Assistant for Haryana Government School Smart Classrooms
 
@@ -22,26 +30,37 @@ A hands-free, voice-first AI co-pilot that lets teachers explain concepts, run q
 ## How It Works
 
 ```
-Teacher speaks into mic
-        ↓
-┌───────────────────────────────────────┐
-│  voxtral-mini-latest                  │  STT: Hinglish speech → text
-└───────────────────────────────────────┘
-        ↓
-┌───────────────────────────────────────┐
-│  mistral-large-2512                   │  LLM: Structured JSON output
-│  (chat.parse + Pydantic schema)       │  → mode, audio_speech, screen_data,
-│                                       │    quiz_data, translation, activity
-└───────────────────────────────────────┘
-        ↓
-┌───────────────────────────────────────┐
-│  voxtral-mini-tts-2603                │  TTS: Full Hinglish explanation
-└───────────────────────────────────────┘
-        ↓
-Smart board displays: transcript + concept points / quiz / translation / timer
-```
+┌─────────────────────────────────────────────────────────────────┐
+│                    VOICE INPUT (Mic / Text)                     │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  🎙 STT: voxtral-mini-latest                                   │
+│  Transcribes Hinglish speech → text                            │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  🧠 LLM: mistral-large-2512                                    │
+│  Structured JSON output with Zod schema                        │
+│  → mode | audio_speech | screen_data | quiz_data | translation │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  🔊 TTS: voxtral-mini-tts-2603                                 │
+│  Full Hinglish explanation audio (12-18 sentences)             │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  📺 SMART BOARD OUTPUT                                         │
+│  Transcript + Concept Points / Quiz / Translation / Timer       │
+└─────────────────────────────────────────────────────────────────┘
 
-**Pipeline latency: ~3 seconds end-to-end**
+Pipeline latency: ~3 seconds end-to-end
+```
 
 ---
 
@@ -138,7 +157,7 @@ cp .env.example .env.local
 # Edit .env.local → MISTRAL_API_KEY=your_key
 
 # Run
-streamlit run app.py
+python -m streamlit run app.py
 # → http://localhost:8501
 ```
 
@@ -162,9 +181,11 @@ school-copilot-streamlit/
 │   ├── client.py           # Mistral AI pipeline (STT + LLM + TTS)
 │   ├── curriculum.py       # NCERT curriculum data (30+ chunks)
 │   ├── rag.py              # Keyword-based RAG retrieval
-│   └── schemas.py          # Pydantic models for structured output
+│   ├── schemas.py          # Pydantic models for structured output
+│   └── visuals.py          # Universal visualization renderer
 ├── requirements.txt
 ├── .env.example
+├── run.bat                 # Windows launcher
 └── README.md
 ```
 
