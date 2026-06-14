@@ -290,6 +290,24 @@ section[data-testid="stSidebar"] button { background: rgba(255,255,255,0.06) !im
 section[data-testid="stSidebar"] button:hover { background: rgba(0,212,170,0.15) !important; border-color: #00d4aa !important; }
 section[data-testid="stSidebar"] [data-testid="stExpander"] { background: rgba(255,255,255,0.03) !important; border-color: rgba(255,255,255,0.08) !important; }
 
+/* Fix: when sidebar collapsed, content should fill full width */
+[data-testid="stSidebar"][aria-expanded="false"] ~ .main .block-container {
+    max-width: 100% !important;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+}
+section[data-testid="stSidebar"][aria-expanded="false"] {
+    width: 0px !important;
+    min-width: 0px !important;
+    overflow: hidden !important;
+}
+.main .block-container {
+    max-width: 100% !important;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+    transition: all 0.3s ease !important;
+}
+
 /* Streamlit overrides */
 .stButton > button {
     border-radius: 10px !important;
