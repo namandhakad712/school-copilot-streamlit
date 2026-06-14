@@ -278,67 +278,17 @@ st.markdown("""
 .empty-title { color: var(--text2); font-size: 18px; font-weight: 600; margin-bottom: 8px; }
 .empty-sub { color: var(--text3); font-size: 13px; line-height: 1.7; }
 
-/* ─── Sidebar ─── */
-section[data-testid="stSidebar"] {
-    background: #080818 !important;
-    border-right: 1px solid rgba(255,255,255,0.06) !important;
-}
-section[data-testid="stSidebar"] .stMarkdown p,
-section[data-testid="stSidebar"] .stMarkdown li,
-section[data-testid="stSidebar"] .stMarkdown h1,
-section[data-testid="stSidebar"] .stMarkdown h2,
-section[data-testid="stSidebar"] .stMarkdown h3 {
-    color: rgba(255,255,255,0.8) !important;
-}
-section[data-testid="stSidebar"] hr {
-    border-color: rgba(255,255,255,0.06) !important;
-}
-section[data-testid="stSidebar"] label,
-section[data-testid="stSidebar"] .stSelectbox label,
-section[data-testid="stSidebar"] .stTextInput label,
-section[data-testid="stSidebar"] .stSlider label,
-section[data-testid="stSidebar"] .stRadio label,
-section[data-testid="stSidebar"] .stExpander label {
-    color: white !important;
-    font-size: 13px !important;
-    font-weight: 700 !important;
-}
-section[data-testid="stSidebar"] [data-baseweb="select"] {
-    background: rgba(255,255,255,0.06) !important;
-    border-color: rgba(255,255,255,0.15) !important;
-    color: white !important;
-}
-section[data-testid="stSidebar"] [data-baseweb="select"] span,
-section[data-testid="stSidebar"] [data-baseweb="select"] div {
-    color: white !important;
-}
-section[data-testid="stSidebar"] [data-baseweb="input"],
-section[data-testid="stSidebar"] [data-baseweb="textarea"] {
-    background: rgba(255,255,255,0.06) !important;
-    border-color: rgba(255,255,255,0.15) !important;
-    color: white !important;
-}
-section[data-testid="stSidebar"] .streamlit-expanderHeader {
-    color: white !important;
-    font-size: 13px !important;
-    font-weight: 700 !important;
-}
-section[data-testid="stSidebar"] [data-baseweb="slider"] {
-    accent-color: var(--primary) !important;
-}
-section[data-testid="stSidebar"] .section-label {
-    color: rgba(255,255,255,0.6) !important;
-    font-weight: 700 !important;
-    font-size: 11px !important;
-}
-section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] {
-    color: white !important;
-    font-size: 13px !important;
-    font-weight: 700 !important;
-}
-section[data-testid="stSidebar"] .stMarkdown {
-    color: rgba(255,255,255,0.7) !important;
-}
+/* ─── Sidebar — FORCE ALL TEXT WHITE ─── */
+section[data-testid="stSidebar"] { background: #080818 !important; width: 340px !important; min-width: 340px !important; }
+section[data-testid="stSidebar"] > div { padding: 0 16px !important; }
+section[data-testid="stSidebar"] * { color: rgba(255,255,255,0.85) !important; }
+section[data-testid="stSidebar"] label { color: white !important; font-weight: 700 !important; }
+section[data-testid="stSidebar"] [data-baseweb="select"] { background: rgba(255,255,255,0.06) !important; border-color: rgba(255,255,255,0.15) !important; }
+section[data-testid="stSidebar"] [data-baseweb="input"] { background: rgba(255,255,255,0.06) !important; border-color: rgba(255,255,255,0.15) !important; }
+section[data-testid="stSidebar"] [data-baseweb="slider"] { accent-color: #00d4aa !important; }
+section[data-testid="stSidebar"] button { background: rgba(255,255,255,0.06) !important; border-color: rgba(255,255,255,0.1) !important; color: white !important; }
+section[data-testid="stSidebar"] button:hover { background: rgba(0,212,170,0.15) !important; border-color: #00d4aa !important; }
+section[data-testid="stSidebar"] [data-testid="stExpander"] { background: rgba(255,255,255,0.03) !important; border-color: rgba(255,255,255,0.08) !important; }
 
 /* Streamlit overrides */
 .stButton > button {
@@ -435,13 +385,13 @@ def render_sidebar():
         st.markdown("""
         <div style="text-align:center;padding:12px 0 20px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:20px;">
             <div style="font-size:28px;margin-bottom:6px;">🎓</div>
-            <div style="color:rgba(255,255,255,0.9);font-size:14px;font-weight:700;">Co-Pilot Settings</div>
+            <div style="color:white;font-size:14px;font-weight:700;">Co-Pilot Settings</div>
         </div>
         """, unsafe_allow_html=True)
 
         # ─── API Key ───
         api_key = st.text_input(
-            "API Key",
+            "🔑 API Key",
             value=os.getenv("MISTRAL_API_KEY", ""),
             type="password",
             placeholder="sk-...",
@@ -451,8 +401,7 @@ def render_sidebar():
 
         st.markdown('<div style="height:6px"></div>', unsafe_allow_html=True)
 
-        # ─── Voice Selection (all 30 voices grouped by language) ───
-        st.markdown('<div class="section-label">Output Voice</div>', unsafe_allow_html=True)
+        # ─── Voice Selection ───
         voice_options = []
         voice_labels = []
         for lang, voices in VOICE_CATALOG.items():
@@ -462,18 +411,17 @@ def render_sidebar():
 
         default_idx = voice_options.index("en_paul_neutral") if "en_paul_neutral" in voice_options else 0
         voice_id = st.selectbox(
-            "Voice",
+            "🔊 Output Voice",
             voice_options,
             index=default_idx,
             format_func=lambda v: next((l for o, l in zip(voice_options, voice_labels) if o == v), v),
         )
 
-        # Voice preview
         st.markdown(f"""
         <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);
             border-radius:8px;padding:8px 12px;margin-top:4px;">
             <span style="color:rgba(255,255,255,0.3);font-size:10px;">VOICE ID</span><br>
-            <code style="color:var(--primary);font-size:11px;">{voice_id}</code>
+            <code style="color:#00d4aa;font-size:11px;">{voice_id}</code>
         </div>
         """, unsafe_allow_html=True)
 
@@ -482,32 +430,24 @@ def render_sidebar():
         # ─── Class & Subject ───
         col1, col2 = st.columns(2)
         with col1:
-            class_level = st.selectbox("Class", ["", "6", "7", "8", "9", "10"],
+            class_level = st.selectbox("📚 Class", ["", "6", "7", "8", "9", "10"],
                                        format_func=lambda x: f"Class {x}" if x else "Auto")
         with col2:
-            subject = st.selectbox("Subject", ["auto", "Science", "Math"],
+            subject = st.selectbox("📖 Subject", ["auto", "Science", "Math"],
                                    format_func=lambda x: "All" if x == "auto" else x)
 
         st.markdown('<div style="height:4px"></div>', unsafe_allow_html=True)
 
-        # ─── Advanced Settings (collapsible) ───
-        with st.expander("Advanced Settings", expanded=False):
-            temperature = st.slider("Creativity", 0.0, 1.0, 0.4, 0.05,
-                                    help="Lower = more focused, Higher = more creative")
-            max_tokens = st.slider("Max Response Length", 2000, 6000, 4000, 500,
-                                   help="Maximum tokens for LLM response")
-            st.markdown("""
-            <div style="color:rgba(255,255,255,0.25);font-size:10px;margin-top:4px;">
-                Temperature 0.3 = Focused & precise<br>
-                Temperature 0.5 = Balanced<br>
-                Temperature 0.7 = More creative variety
-            </div>
-            """, unsafe_allow_html=True)
+        # ─── Advanced Settings ───
+        temperature = 0.4
+        max_tokens = 4000
+        with st.expander("⚙️ Advanced Settings", expanded=False):
+            temperature = st.slider("Creativity", 0.0, 1.0, 0.4, 0.05)
+            max_tokens = st.slider("Max Response Length", 2000, 6000, 4000, 500)
 
         st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
 
         # ─── Quick Examples ───
-        st.markdown('<div class="section-label">Quick Examples</div>', unsafe_allow_html=True)
         examples = [
             ("Photosynthesis samjhao", "🔬 Concept"),
             ("Newton laws ka quiz banao", "🧩 Quiz"),
@@ -540,7 +480,7 @@ def render_sidebar():
         # ─── History ───
         if st.session_state.history:
             st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
-            st.markdown('<div class="section-label">Recent</div>', unsafe_allow_html=True)
+            st.markdown('<p style="color:white;font-size:13px;font-weight:700;margin-bottom:4px;">📋 Recent</p>', unsafe_allow_html=True)
             for entry in reversed(st.session_state.history[-5:]):
                 icon = "🎙" if entry["role"] == "user" else "🤖"
                 text = entry["content"][:50] + ("..." if len(entry["content"]) > 50 else "")
