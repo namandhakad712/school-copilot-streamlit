@@ -284,39 +284,54 @@ section[data-testid="stSidebar"] {
     border-right: 1px solid rgba(255,255,255,0.06) !important;
 }
 section[data-testid="stSidebar"] .stMarkdown p,
-section[data-testid="stSidebar"] .stMarkdown li {
-    color: var(--text2) !important;
+section[data-testid="stSidebar"] .stMarkdown li,
+section[data-testid="stSidebar"] .stMarkdown h1,
+section[data-testid="stSidebar"] .stMarkdown h2,
+section[data-testid="stSidebar"] .stMarkdown h3 {
+    color: rgba(255,255,255,0.8) !important;
 }
 section[data-testid="stSidebar"] hr {
     border-color: rgba(255,255,255,0.06) !important;
 }
-section[data-testid="stSidebar"] label {
-    color: rgba(255,255,255,0.7) !important;
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] .stSelectbox label,
+section[data-testid="stSidebar"] .stTextInput label,
+section[data-testid="stSidebar"] .stSlider label,
+section[data-testid="stSidebar"] .stRadio label,
+section[data-testid="stSidebar"] .stExpander label {
+    color: rgba(255,255,255,0.75) !important;
     font-size: 12px !important;
     font-weight: 600 !important;
 }
-section[data-testid="stSidebar"] .stSelectbox label,
-section[data-testid="stSidebar"] .stTextInput label,
-section[data-testid="stSidebar"] .stSlider label {
-    color: rgba(255,255,255,0.7) !important;
-}
 section[data-testid="stSidebar"] [data-baseweb="select"] {
     background: rgba(255,255,255,0.04) !important;
-    border-color: rgba(255,255,255,0.1) !important;
-    color: rgba(255,255,255,0.8) !important;
+    border-color: rgba(255,255,255,0.12) !important;
+    color: rgba(255,255,255,0.85) !important;
 }
-section[data-testid="stSidebar"] [data-baseweb="input"] {
+section[data-testid="stSidebar"] [data-baseweb="select"] span {
+    color: rgba(255,255,255,0.85) !important;
+}
+section[data-testid="stSidebar"] [data-baseweb="input"],
+section[data-testid="stSidebar"] [data-baseweb="textarea"] {
     background: rgba(255,255,255,0.04) !important;
-    border-color: rgba(255,255,255,0.1) !important;
-    color: rgba(255,255,255,0.8) !important;
+    border-color: rgba(255,255,255,0.12) !important;
+    color: rgba(255,255,255,0.85) !important;
 }
 section[data-testid="stSidebar"] .streamlit-expanderHeader {
-    color: rgba(255,255,255,0.7) !important;
+    color: rgba(255,255,255,0.75) !important;
     font-size: 12px !important;
     font-weight: 600 !important;
 }
 section[data-testid="stSidebar"] [data-baseweb="slider"] {
     accent-color: var(--primary) !important;
+}
+section[data-testid="stSidebar"] .section-label {
+    color: rgba(255,255,255,0.5) !important;
+}
+section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] {
+    color: rgba(255,255,255,0.75) !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
 }
 
 /* Streamlit overrides */
@@ -355,6 +370,7 @@ def init_session():
         "history": [], "status": "idle", "last_response": None, "last_audio": None,
         "last_transcript": "", "last_timing": {}, "last_words": [],
         "quiz_score": {"correct": 0, "total": 0},
+        "processing": False, "last_ask_time": 0,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -923,9 +939,18 @@ def main():
 
     c1, c2 = st.columns([1, 4])
     with c1:
-        ask = st.button("Ask", type="primary", use_container_width=True)
+        is_processing = st.session_state.processing
+        ask = st.button("Ask", type="primary", use_container_width=True, disabled=is_processing,
+                        help="Processing..." if is_processing else "Ask a question")
 
-    if ask:
+    if ask and not is_processing:
+        # Debounce: reject if less than 2 seconds since last ask
+        now = time.time()
+        if now - st.session_state.last_ask_time < 2:
+            st.info("Please wait..."); st.stop()
+        st.session_state.last_ask_time = now
+        st.session_state.processing = True
+
         transcript = ""
         stt_ms = 0
         if audio_value:
@@ -936,10 +961,12 @@ def main():
                     transcript = transcribe(client, ab)
                     stt_ms = int((time.time() - t0) * 1000)
                 if not transcript:
+                    st.session_state.processing = False
                     st.error("No speech detected."); st.stop()
         elif text_value.strip():
             transcript = text_value.strip()
         if not transcript:
+            st.session_state.processing = False
             st.info("Speak or type a question."); st.stop()
 
         st.session_state.last_transcript = transcript
@@ -948,6 +975,7 @@ def main():
         with st.spinner("Thinking..."):
             resp, timing = generate_response(client, transcript, class_level, subject, temperature, max_tokens)
         if not resp:
+            st.session_state.processing = False
             st.error("Failed."); st.stop()
         timing["stt_ms"] = stt_ms
 
@@ -972,6 +1000,7 @@ def main():
         st.session_state.last_words = word_timestamps
         st.session_state.status = "speaking"
         st.session_state.history.append({"role": "assistant", "content": resp.audio_speech[:200]})
+        st.session_state.processing = False
         st.rerun()
 
     # Response
