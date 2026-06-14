@@ -20,7 +20,9 @@ class QuizData(BaseModel):
 
 
 class AssistantResponse(BaseModel):
-    mode: str  # "SIMPLIFY" or "QUIZ"
+    mode: str  # SIMPLIFY | QUIZ | TRANSLATE | ACTIVITY
     audio_speech: str
     screen_data: Optional[ScreenData] = None
     quiz_data: Optional[QuizData] = None
+    translation: Optional[dict] = None  # {"original": str, "translated": str, "language": str}
+    activity: Optional[dict] = None  # {"instruction": str, "duration_seconds": int, "steps": list[str]}

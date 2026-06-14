@@ -1,85 +1,125 @@
 # Classroom Co-Pilot AI
 
-**Voice-Enabled AI Teaching Assistant for Haryana Government School Smart Classrooms**
+### Voice-First AI Teaching Assistant for Haryana Government School Smart Classrooms
 
-A voice-first AI co-pilot that lets teachers explain concepts and run quizzes using natural Hinglish speech. Built on a **unified Mistral AI stack** — one API, three models, zero cross-vendor latency.
+A hands-free, voice-first AI co-pilot that lets teachers explain concepts, run quizzes, translate content, and guide activities using natural Hinglish speech — all projected on the smart board.
+
+**One API key. Three Mistral AI models. Zero cross-vendor latency.**
+
+---
 
 ## Features
 
-| Feature | Description |
-|---------|-------------|
-| **Voice In / Voice Out** | Teacher speaks Hinglish, AI responds with full spoken explanation + visuals |
-| **Live Transcript** | Real-time word-by-word display as teacher speaks |
-| **Interactive Diagrams** | SVG diagrams projected on smart board (photosynthesis, circuits, water cycle, etc.) |
-| **Voice Quizzes** | *"Let's do a quiz!"* → AI generates 3-4 MCQ questions with instant grading |
-| **NCERT RAG** | Curriculum-aligned responses using keyword retrieval over NCERT/Haryana Board data |
-| **On-Screen Keyboard** | Virtual keyboard with EN/HI toggle for touch-screen smart boards |
-| **Zero Config** | One API key, one command, done |
+| Feature | What it does | Example command |
+|---------|-------------|-----------------|
+| **Live Concept Simplification** | Teacher speaks a topic → AI explains in Hinglish with visual points on smart board | *"Photosynthesis samjhao"* |
+| **Voice-Triggered Quizzing** | AI generates 3 MCQ questions, displays on board, teacher quizzes verbally | *"Quiz lagao Newton's laws pe"* |
+| **Bilingual Dictation & Translation** | Transcribe/translate between English, Hindi, and Hinglish | *"Iska Hindi mein translate karo"* |
+| **Hands-Free Activity Guide** | Verbal step-by-step instructions with on-screen countdown timer | *"Activity guide do photosynthesis ki"* |
+
+---
 
 ## How It Works
 
 ```
 Teacher speaks into mic
         ↓
-[voxtral-mini-latest]    →  STT: Hinglish speech → text
+┌───────────────────────────────────────┐
+│  voxtral-mini-latest                  │  STT: Hinglish speech → text
+└───────────────────────────────────────┘
         ↓
-[mistral-large-2512]     →  LLM: Structured JSON (Zod schema enforced)
+┌───────────────────────────────────────┐
+│  mistral-large-2512                   │  LLM: Structured JSON output
+│  (chat.parse + Pydantic schema)       │  → mode, audio_speech, screen_data,
+│                                       │    quiz_data, translation, activity
+└───────────────────────────────────────┘
         ↓
-[voxtral-mini-tts-2603]  →  TTS: Full explanation → spoken audio
+┌───────────────────────────────────────┐
+│  voxtral-mini-tts-2603                │  TTS: Full Hinglish explanation
+└───────────────────────────────────────┘
         ↓
-Smart board displays: transcript + concept points + interactive diagram
+Smart board displays: transcript + concept points / quiz / translation / timer
 ```
 
-**Three Mistral calls. One API key. ~3 second total latency.**
+**Pipeline latency: ~3 seconds end-to-end**
+
+---
 
 ## Tech Stack
 
 | Layer | Technology | Why |
 |-------|-----------|-----|
-| Framework | **Streamlit** | Rapid prototyping, smart board optimized |
-| AI | **Mistral AI SDK** | Unified STT + LLM + TTS in one vendor |
-| Schemas | **Pydantic** | Type-safe structured LLM output |
-| RAG | **Keyword Retrieval** | NCERT curriculum-aligned responses |
-| State | **Streamlit Session State** | Conversation history, settings persistence |
+| **Interface** | Streamlit | Rapid prototyping, smart board optimized, wide layout |
+| **AI SDK** | Mistral AI (Python) | Unified STT + LLM + TTS in one vendor, one API key |
+| **Structured Output** | `chat.parse` + Pydantic | Schema-enforced JSON — SDK rejects malformed responses |
+| **RAG** | Keyword retrieval over NCERT curriculum | 30+ curriculum chunks covering Science & Math, Class 6-10 |
+| **State** | Streamlit Session State | Conversation history, quiz scores, settings persistence |
+| **Deployment** | Streamlit Cloud | One-click deploy, public URL for live demo |
+
+---
 
 ## Prompt Design
 
-The LLM outputs **strict JSON** enforced by Pydantic schema:
+The system prompt is the core of this project. Key design choices:
 
-```json
-{
-  "mode": "SIMPLIFY",
-  "audio_speech": "6-10 sentences of full Hinglish explanation...",
-  "screen_data": {
-    "title": "Photosynthesis",
-    "points": ["Sunlight energy...", "CO₂ absorption...", "Glucose production..."],
-    "visual_cue": "Diagram showing sun, leaf, CO₂, O₂, water cycle"
-  },
-  "quiz_data": null
-}
-```
+### Language
+- **Hinglish-first**: All prompts optimized for Hindi-English mix speech
+- Natural conversational fillers: *"achha"*, *"dekho"*, *"samjhe?"*, *"chalo"*
+- Technical terms in English, explanations in Hindi transliteration
+- Example: *"Bacho, aaj hum photosynthesis dekhenge! Sunlight se paudhe apna khana banate hain..."*
 
-Key design choices:
-- **Hinglish-first** — all prompts optimized for Hindi-English mix speech
-- **Full audio_speech** — complete lesson (6-10 sentences), not just a summary
-- **Schema-enforced** via `chat.parse` — SDK rejects malformed responses
-- **Temperature 0.3** — deterministic, consistent classroom output
-- **RAG context** — NCERT curriculum data injected as reference material
+### Persona
+- Passionate, energetic Hindi-medium teacher
+- Calls students *"bacho"* and *"beta/beti"*
+- Uses Indian real-life examples: cricket, Bollywood, street food, festivals
+- Makes complex topics feel simple and fun
+
+### Structured Output
+- JSON schema enforced via `chat.parse` — no manual parsing
+- `audio_speech`: 6-10 sentences of FULL explanation (not a summary)
+- `screen_data`: title, bullet points, visual cue for smart board
+- `quiz_data`: 3 questions with 4 options each
+- `translation`: original + translated text
+- `activity`: step-by-step instructions with duration
+
+### Modes
+| Mode | Trigger | Output |
+|------|---------|--------|
+| SIMPLIFY | *"samjhao"*, *"explain"*, *"batao"* | Full explanation + visual points |
+| QUIZ | *"quiz"*, *"sawal"*, *"test"* | 3 MCQ questions |
+| TRANSLATE | *"translate"*, *"Hindi mein"*, *"English mein"* | Bilingual text |
+| ACTIVITY | *"activity"*, *"practical"*, *"experiment"* | Step-by-step guide + timer |
+
+---
 
 ## Localization
 
 | Language | Support |
 |----------|---------|
-| Hinglish (Hindi + English) | Primary — all speech I/O, prompts, responses |
-| English | UI labels, error messages |
-| Hindi (Devanagari) | On-screen keyboard input |
+| **Hinglish** (primary) | All speech I/O, prompts, responses in Hindi-English mix |
+| **English** | UI labels, error messages, technical terms |
+| **Hindi (Latin script)** | Transliterated Hindi in all interactions |
+| **Hindi (Devanagari)** | On-screen keyboard input for non-Latin typing |
 
-The system prompt is specifically designed for **Hinglish conversational flow** — using natural mixing of Hindi words ("bacho", "dekhte hain", "samjhe?") with English technical terms.
+The system prompt specifically instructs the LLM to respond in **conversational Hinglish** — not pure Hindi, not pure English — matching how Haryana government school teachers actually speak.
+
+---
+
+## NCERT Curriculum RAG
+
+The app includes a keyword-based RAG system with 30+ curriculum chunks:
+
+**Science** (Class 6-10): Food, nutrition, light, electricity, force, sound, matter, atoms, cells, tissues, Newton's laws, gravitation, chemical reactions, acids/bases, metals, carbon compounds, life processes, control & coordination
+
+**Mathematics** (Class 6-10): Numbers, fractions, geometry, integers, equations, perimeter/area, rational numbers, polynomials, triangles, trigonometry, quadratic equations, circles, statistics, probability
+
+Each chunk includes: subject, class range, chapter, topic, keywords, and detailed content reference. The RAG retrieves the top 3 most relevant chunks and injects them as context for the LLM.
+
+---
 
 ## Getting Started
 
 ### Prerequisites
-
 - Python 3.10+
 - A [Mistral AI](https://console.mistral.ai/) API key
 
@@ -95,22 +135,32 @@ pip install -r requirements.txt
 
 # Configure
 cp .env.example .env.local
-# Add your key: MISTRAL_API_KEY=your_key_here
+# Edit .env.local → MISTRAL_API_KEY=your_key
 
 # Run
 streamlit run app.py
 # → http://localhost:8501
 ```
 
+### Deploy to Streamlit Cloud
+
+1. Push to GitHub
+2. Go to [share.streamlit.io](https://share.streamlit.io)
+3. Connect your repo
+4. Set `MISTRAL_API_KEY` in secrets
+5. Deploy — get public URL
+
+---
+
 ## Project Structure
 
 ```
 school-copilot-streamlit/
-├── app.py                  # Main Streamlit application
+├── app.py                  # Streamlit UI (dark glass-morphism, smart board optimized)
 ├── lib/
 │   ├── __init__.py
-│   ├── client.py           # Mistral AI client (STT + LLM + TTS)
-│   ├── curriculum.py       # NCERT curriculum data (RAG)
+│   ├── client.py           # Mistral AI pipeline (STT + LLM + TTS)
+│   ├── curriculum.py       # NCERT curriculum data (30+ chunks)
 │   ├── rag.py              # Keyword-based RAG retrieval
 │   └── schemas.py          # Pydantic models for structured output
 ├── requirements.txt
@@ -118,12 +168,16 @@ school-copilot-streamlit/
 └── README.md
 ```
 
+---
+
 ## Deliverables
 
-- **Live URL**: [Streamlit app running on localhost:8501]
-- **GitHub Repo**: [https://github.com/namandhakad712/school-copilot-streamlit](https://github.com/namandhakad712/school-copilot-streamlit)
-- **Video Walkthrough**: [3-minute demo video]
-- **This README**: Tech stack, prompt design, localization details
+- **Live URL**: Deployed on Streamlit Cloud
+- **GitHub Repo**: [github.com/namandhakad712/school-copilot-streamlit](https://github.com/namandhakad712/school-copilot-streamlit)
+- **README**: This document (tech stack, prompt design, localization)
+- **Video Walkthrough**: 3-minute demo showing all 4 features
+
+---
 
 ## License
 
