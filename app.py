@@ -299,43 +299,42 @@ section[data-testid="stSidebar"] .stTextInput label,
 section[data-testid="stSidebar"] .stSlider label,
 section[data-testid="stSidebar"] .stRadio label,
 section[data-testid="stSidebar"] .stExpander label {
-    color: rgba(255,255,255,0.75) !important;
-    font-size: 12px !important;
-    font-weight: 600 !important;
+    color: white !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
 }
 section[data-testid="stSidebar"] [data-baseweb="select"] {
-    background: rgba(255,255,255,0.04) !important;
-    border-color: rgba(255,255,255,0.12) !important;
-    color: rgba(255,255,255,0.85) !important;
+    background: rgba(255,255,255,0.06) !important;
+    border-color: rgba(255,255,255,0.15) !important;
+    color: white !important;
 }
-section[data-testid="stSidebar"] [data-baseweb="select"] span {
-    color: rgba(255,255,255,0.85) !important;
+section[data-testid="stSidebar"] [data-baseweb="select"] span,
+section[data-testid="stSidebar"] [data-baseweb="select"] div {
+    color: white !important;
 }
 section[data-testid="stSidebar"] [data-baseweb="input"],
 section[data-testid="stSidebar"] [data-baseweb="textarea"] {
-    background: rgba(255,255,255,0.04) !important;
-    border-color: rgba(255,255,255,0.12) !important;
-    color: rgba(255,255,255,0.85) !important;
+    background: rgba(255,255,255,0.06) !important;
+    border-color: rgba(255,255,255,0.15) !important;
+    color: white !important;
 }
 section[data-testid="stSidebar"] .streamlit-expanderHeader {
-    color: rgba(255,255,255,0.75) !important;
-    font-size: 12px !important;
-    font-weight: 600 !important;
+    color: white !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
 }
 section[data-testid="stSidebar"] [data-baseweb="slider"] {
     accent-color: var(--primary) !important;
 }
 section[data-testid="stSidebar"] .section-label {
-    color: rgba(255,255,255,0.5) !important;
+    color: rgba(255,255,255,0.6) !important;
+    font-weight: 700 !important;
+    font-size: 11px !important;
 }
 section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] {
-    color: rgba(255,255,255,0.8) !important;
-    font-size: 12px !important;
-    font-weight: 600 !important;
-}
-section[data-testid="stSidebar"] [data-baseweb="select"] span,
-section[data-testid="stSidebar"] [data-baseweb="select"] div {
-    color: rgba(255,255,255,0.85) !important;
+    color: white !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
 }
 section[data-testid="stSidebar"] .stMarkdown {
     color: rgba(255,255,255,0.7) !important;
